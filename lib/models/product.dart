@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:developer' as developer;
 
 class Product {
   final String id;
@@ -9,6 +8,8 @@ class Product {
   final int stock;
   final String category;
   final String description;
+  final Timestamp? createdAt;
+  final String? updatedAt;
 
   Product({
     required this.id,
@@ -18,10 +19,11 @@ class Product {
     required this.stock,
     required this.category,
     required this.description,
+    this.createdAt,
+    this.updatedAt,
   });
 
   static double _parsePrice(dynamic price) {
-    // (Price parsing logic remains the same)
     if (price is String) {
       final cleanedPrice = price.replaceAll(RegExp(r'[^0-9]'), '');
       return double.tryParse(cleanedPrice) ?? 0.0;
@@ -34,19 +36,23 @@ class Product {
   factory Product.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
 
-    String imageUrl = data['imageUrl'] ?? '';
+    String imageUrl = data['image'] as String? ?? '';
     if (imageUrl.isEmpty) {
-      imageUrl = 'https://firebasestorage.googleapis.com/v0/b/react-native-crud-63233.appspot.com/o/products%2Fplaceholder.png?alt=media&token=895a5258-57c2-422e-a3b0-3f0f7811a2f5';
+      imageUrl = 'https://picsum.photos/seed/${doc.id}/200/300';
     }
+
+    int stock = (data['stock'] as num?)?.toInt() ?? (data['stok'] as num?)?.toInt() ?? 0;
 
     return Product(
       id: doc.id,
-      name: data['name'] ?? 'No Name',
+      name: data['name'] as String? ?? 'No Name',
       price: _parsePrice(data['price']),
       imageUrl: imageUrl,
-      stock: (data['stock'] as num?)?.toInt() ?? 0,
+      stock: stock,
       category: data['category'] as String? ?? '',
       description: data['description'] as String? ?? '',
+      createdAt: data['createdAt'] as Timestamp?,
+      updatedAt: data['updated_at'] as String?,
     );
   }
 }

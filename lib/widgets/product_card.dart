@@ -12,19 +12,23 @@ class ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final formatCurrency = NumberFormat.simpleCurrency(locale: 'id_ID');
+    final formatCurrency = NumberFormat.simpleCurrency(locale: 'id_ID', decimalDigits: 0);
 
     return Card(
-      clipBehavior: Clip.antiAlias, // Ensures the image is clipped to the card's rounded corners
+      clipBehavior: Clip.antiAlias,
       elevation: 4.0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
       child: InkWell(
         onTap: () {
-          // Navigate to the product detail screen, passing the product object
-          context.go('/product_detail', extra: product);
+          // Correct navigation using pushNamed for proper stack behavior
+          context.pushNamed(
+            'productDetail',
+            pathParameters: {'id': product.id},
+            extra: product,
+          );
         },
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch, // Stretch children to fill width
           children: [
             Expanded(
               child: Hero(
@@ -33,7 +37,6 @@ class ProductCard extends StatelessWidget {
                   product.imageUrl,
                   fit: BoxFit.cover,
                   width: double.infinity,
-                  // Loading and error builders for better UX
                   loadingBuilder: (context, child, loadingProgress) {
                     if (loadingProgress == null) return child;
                     return const Center(child: CircularProgressIndicator());
@@ -45,7 +48,7 @@ class ProductCard extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding: const EdgeInsets.all(10.0), // Slightly more padding
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -55,10 +58,30 @@ class ProductCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4.0),
-                  Text(
-                    formatCurrency.format(product.price),
-                    style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.primary),
+                  const SizedBox(height: 2.0),
+                  if (product.category.isNotEmpty)
+                    Text(
+                      product.category,
+                      style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  const SizedBox(height: 6.0),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        formatCurrency.format(product.price),
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Stok: ${product.stock}',
+                        style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
+                      ),
+                    ],
                   ),
                 ],
               ),

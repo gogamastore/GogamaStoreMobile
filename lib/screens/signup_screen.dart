@@ -5,20 +5,20 @@ import 'package:provider/provider.dart';
 
 import '../services/auth_service.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class SignUpScreen extends StatefulWidget {
+  const SignUpScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<SignUpScreen> createState() => _SignUpScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
-  Future<void> _signIn() async {
+  Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -28,38 +28,35 @@ class _LoginScreenState extends State<LoginScreen> {
     String? errorMessage;
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
-      // The service returns a User object directly, so let's call the variable 'user'.
-      final user = await authService.signInWithEmailAndPassword(
+      // The service returns a User object directly.
+      final user = await authService.signUpWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
       if (user != null) {
-        // User is authenticated, now check Firestore role.
-        final userDoc = await FirebaseFirestore.instance
+        // After successful sign-up, create a user document in Firestore.
+        await FirebaseFirestore.instance
             .collection('users')
-            // Access the uid directly from the user object.
+            // Access uid and email directly from the user object.
             .doc(user.uid)
-            .get();
-
-        if (!userDoc.exists || userDoc.data()?['role'] != 'reseller') {
-          // If role is not 'reseller' or doc doesn't exist, sign out immediately.
-          await authService.signOut();
-          errorMessage = 'Hanya akun reseller yang diizinkan masuk.';
-        }
-        // If role is correct, the auth state change will handle navigation automatically.
-
+            .set({
+          'email': user.email,
+          'role': 'reseller',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        // The auth state listener will automatically navigate the user in.
       }
     } on FirebaseException catch (e) {
-        if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
-            errorMessage = 'Email atau kata sandi salah.';
-        } else if (e.code == 'invalid-email') {
-            errorMessage = 'Format email tidak valid.';
-        } else {
-            errorMessage = 'Terjadi kesalahan. Silakan coba lagi.';
-        }
+      if (e.code == 'email-already-in-use') {
+        errorMessage = 'Email ini sudah terdaftar. Silakan masuk.';
+      } else if (e.code == 'weak-password') {
+        errorMessage = 'Kata sandi terlalu lemah. Gunakan minimal 6 karakter.';
+      } else {
+        errorMessage = 'Terjadi kesalahan saat pendaftaran.';
+      }
     } catch (e) {
-        errorMessage = 'Terjadi kesalahan yang tidak diketahui.';
+      errorMessage = 'Terjadi kesalahan yang tidak diketahui.';
     }
 
     if (mounted) {
@@ -80,7 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Masuk Reseller')),
+      appBar: AppBar(title: const Text('Daftar Akun Reseller')),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -90,9 +87,9 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Selamat Datang Kembali', style: textTheme.headlineSmall),
+                Text('Buat Akun Baru', style: textTheme.headlineSmall),
                 const SizedBox(height: 8),
-                Text('Masuk ke akun reseller Anda', style: textTheme.bodyMedium),
+                Text('Isi detail di bawah untuk mendaftar', style: textTheme.bodyMedium),
                 const SizedBox(height: 32),
                 TextFormField(
                   controller: _emailController,
@@ -111,8 +108,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   decoration: const InputDecoration(labelText: 'Password'),
                   obscureText: true,
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Masukkan kata sandi Anda';
+                    if (value == null || value.length < 6) {
+                      return 'Kata sandi harus terdiri dari minimal 6 karakter';
                     }
                     return null;
                   },
@@ -121,20 +118,21 @@ class _LoginScreenState extends State<LoginScreen> {
                 _isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : ElevatedButton(
-                        onPressed: _signIn,
+                        onPressed: _signUp,
                         style: ElevatedButton.styleFrom(minimumSize: const Size(0, 50)),
-                        child: const Text('Masuk'),
+                        child: const Text('Daftar'),
                       ),
                 const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('Belum punya akun? ', style: textTheme.bodyMedium),
+                    Text('Sudah punya akun? ', style: textTheme.bodyMedium),
                     TextButton(
                       onPressed: () {
-                        context.go('/signup');
+                        // Navigate back to the login screen
+                        context.go('/'); // Assuming login is at the root or another defined path
                       },
-                      child: const Text('Daftar di sini'),
+                      child: const Text('Masuk di sini'),
                     ),
                   ],
                 )
