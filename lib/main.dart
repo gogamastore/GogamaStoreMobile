@@ -33,7 +33,6 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (context) => ThemeProvider()),
         ChangeNotifierProvider<AuthService>(create: (_) => AuthService()),
         Provider<FirestoreService>(create: (_) => FirestoreService()),
         StreamProvider<User?>(
@@ -45,18 +44,12 @@ class MyApp extends StatelessWidget {
           update: (context, user, previous) => CartProvider(context.read<FirestoreService>(), user?.uid),
         ),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, child) {
-          return MaterialApp.router(
+      child: MaterialApp.router(
             routerConfig: router,
             title: 'Gogama Store',
             theme: ThemeProvider.lightTheme,
-            darkTheme: ThemeProvider.darkTheme,
-            themeMode: themeProvider.themeMode,
             debugShowCheckedModeBanner: false,
-          );
-        },
-      ),
+          ),
     );
   }
 }

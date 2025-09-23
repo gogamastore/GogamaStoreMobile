@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../domain/product.dart';
 import '../../../core/data/firestore_service.dart';
-import '../../widgets/product_card.dart';
+import '../domain/product.dart';
+import 'widgets/product_card.dart';
 
 class CatalogScreen extends StatefulWidget {
   const CatalogScreen({super.key});
@@ -13,108 +13,92 @@ class CatalogScreen extends StatefulWidget {
 }
 
 class _CatalogScreenState extends State<CatalogScreen> {
-  final TextEditingController _searchController = TextEditingController();
+  late final FirestoreService _firestoreService;
+  Stream<List<Product>>? _productsStream;
   String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(() {
-      setState(() {
-        _searchQuery = _searchController.text;
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+    _firestoreService = Provider.of<FirestoreService>(context, listen: false);
+    _productsStream = _firestoreService.getProductsStream();
   }
 
   @override
   Widget build(BuildContext context) {
-    final firestoreService = Provider.of<FirestoreService>(context);
-
     return Scaffold(
-      body: CustomScrollView(
-        slivers: <Widget>[
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Cari nama produk...',
-                  prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.0),
-                    borderSide: BorderSide.none,
-                  ),
-                  filled: true,
-                  fillColor: Colors.grey[200],
+      appBar: AppBar(
+        title: TextField(
+          onChanged: (value) {
+            setState(() {
+              _searchQuery = value;
+            });
+          },
+          decoration: const InputDecoration(
+            hintText: 'Cari produk...',
+            border: InputBorder.none,
+            hintStyle: TextStyle(color: Colors.white70),
+          ),
+          style: const TextStyle(color: Colors.white), // Set text color to white
+        ),
+      ),
+      body: StreamBuilder<List<Product>>(
+        stream: _productsStream,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            // Improved error handling to show the actual Firebase error
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  'Gagal memuat produk. Penyebab: ${snapshot.error}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.red[700]),
                 ),
               ),
+            );
+          }
+
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          var products = snapshot.data ?? [];
+
+          if (_searchQuery.isNotEmpty) {
+            products = products.where((product) {
+              return product.name.toLowerCase().contains(_searchQuery.toLowerCase());
+            }).toList();
+          }
+
+          if (products.isEmpty) {
+            return const Center(
+              child: Text(
+                'Tidak ada produk yang cocok dengan pencarian Anda.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16),
+              ),
+            );
+          }
+
+          // The definitive fix: Decreasing childAspectRatio to give cards more height.
+          return Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: GridView.builder(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                // Decreased from 0.7 to 0.6 to make cards taller.
+                childAspectRatio: 0.6,
+                crossAxisSpacing: 8.0,
+                mainAxisSpacing: 8.0,
+              ),
+              itemCount: products.length,
+              itemBuilder: (context, index) {
+                return ProductCard(product: products[index]);
+              },
             ),
-          ),
-          StreamBuilder<List<Product>>(
-            stream: firestoreService.getProducts(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const SliverFillRemaining(
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
-              if (snapshot.hasError) {
-                return SliverFillRemaining(
-                  child: Center(child: Text('Error: ${snapshot.error}')),
-                );
-              }
-              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return const SliverFillRemaining(
-                  child: Center(child: Text('Tidak ada produk yang ditemukan.')),
-                );
-              }
-
-              final allProducts = snapshot.data!;
-              final filteredProducts = allProducts.where((product) {
-                final nameLower = product.name.toLowerCase();
-                final searchLower = _searchQuery.toLowerCase();
-                return nameLower.contains(searchLower);
-              }).toList();
-
-              if (filteredProducts.isEmpty) {
-                return const SliverFillRemaining(
-                  child: Center(
-                    child: Text(
-                      'Produk tidak ditemukan.',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                  ),
-                );
-              }
-
-              return SliverPadding(
-                padding: const EdgeInsets.all(16.0),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16.0,
-                    mainAxisSpacing: 16.0,
-                    childAspectRatio: 0.75,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final product = filteredProducts[index];
-                      return ProductCard(product: product);
-                    },
-                    childCount: filteredProducts.length,
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
+          );
+        },
       ),
     );
   }

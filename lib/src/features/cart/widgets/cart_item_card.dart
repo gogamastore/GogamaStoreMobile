@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 
 import '../application/cart_provider.dart';
 import '../domain/cart_item.dart';
@@ -8,66 +7,60 @@ import '../domain/cart_item.dart';
 class CartItemCard extends StatelessWidget {
   final CartItem cartItem;
 
-  const CartItemCard({super.key, required this.cartItem});
+  const CartItemCard({required this.cartItem, super.key});
 
   @override
   Widget build(BuildContext context) {
-    final cartProvider = Provider.of<CartProvider>(context);
-    final theme = Theme.of(context);
-    final formatCurrency = NumberFormat.simpleCurrency(locale: 'id_ID', decimalDigits: 0);
+    final cartProvider = Provider.of<CartProvider>(context, listen: false);
 
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Row(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8.0),
-              child: Image.network(
-                cartItem.product.imageUrl,
-                width: 80,
-                height: 80,
-                fit: BoxFit.cover,
-              ),
+            Image.network(
+              cartItem.product.imageUrl,
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16.0),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     cartItem.product.name,
-                    style: theme.textTheme.titleMedium,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 8.0),
                   Text(
-                    formatCurrency.format(cartItem.product.price),
-                    style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+                    'Rp${cartItem.product.price}',
+                    style: Theme.of(context).textTheme.bodyLarge,
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 12),
             Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.remove_circle_outline),
+                  icon: const Icon(Icons.remove),
                   onPressed: () {
-                    if (cartItem.quantity > 1) {
-                      cartProvider.updateItemQuantity(cartItem.product.id, cartItem.quantity - 1);
-                    } else {
-                      cartProvider.removeItem(cartItem.product.id);
-                    }
+                    cartProvider.updateItemQuantity(
+                      cartItem.product.id,
+                      cartItem.quantity - 1,
+                    );
                   },
                 ),
-                Text('${cartItem.quantity}', style: theme.textTheme.bodyLarge),
+                Text(cartItem.quantity.toString()),
                 IconButton(
-                  icon: const Icon(Icons.add_circle_outline),
+                  icon: const Icon(Icons.add),
                   onPressed: () {
-                    cartProvider.updateItemQuantity(cartItem.product.id, cartItem.quantity + 1);
+                    cartProvider.updateItemQuantity(
+                      cartItem.product.id,
+                      cartItem.quantity + 1,
+                    );
                   },
                 ),
               ],

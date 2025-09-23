@@ -3,56 +3,70 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class Product {
   final String id;
   final String name;
+  final String description;
   final double price;
   final String imageUrl;
-  final int stock;
   final String category;
-  final String description;
-  final Timestamp? createdAt;
-  final String? updatedAt;
+  final int stock;
 
   Product({
     required this.id,
     required this.name,
+    required this.description,
     required this.price,
     required this.imageUrl,
-    required this.stock,
     required this.category,
-    required this.description,
-    this.createdAt,
-    this.updatedAt,
+    required this.stock,
   });
 
-  static double _parsePrice(dynamic price) {
-    if (price is String) {
-      final cleanedPrice = price.replaceAll(RegExp(r'[^0-9]'), '');
-      return double.tryParse(cleanedPrice) ?? 0.0;
-    } else if (price is num) {
-      return price.toDouble();
+  Map<String, dynamic> toMap() {
+    return {
+      // NOTE: Storing as 'image' to match the definitive field name from Firestore.
+      'id': id,
+      'name': name,
+      'description': description,
+      'price': price,
+      'image': imageUrl, // Write back using the correct field name.
+      'category': category,
+      'stock': stock,
+    };
+  }
+
+  // --- DEFINITIVE FIX for data loading issues ---
+  factory Product.fromMap(Map<String, dynamic> map) {
+    double parsedPrice = 0.0;
+    final priceValue = map['price'];
+
+    if (priceValue is num) {
+      // Case 1: The price is already a number (the ideal case).
+      parsedPrice = priceValue.toDouble();
+    } else if (priceValue is String) {
+      // Case 2: The price is a formatted string (e.g., "Rp 40.000").
+      try {
+        // Clean the string by removing all non-digit characters.
+        final cleanString = priceValue.replaceAll(RegExp(r'[^0-9]'), '');
+        parsedPrice = double.tryParse(cleanString) ?? 0.0;
+      } catch (_) {
+        // If parsing fails for any reason, default to 0.0.
+        parsedPrice = 0.0;
+      }
     }
-    return 0.0;
+
+    return Product(
+      id: map['id'] as String? ?? '',
+      name: map['name'] as String? ?? 'Nama Tidak Diketahui',
+      description: map['description'] as String? ?? '',
+      price: parsedPrice, // Use the safely parsed price.
+      // --- FIX: Using the correct 'image' field from Firestore data ---
+      imageUrl: map['image'] as String? ?? '', // The internal variable is still imageUrl for consistency.
+      category: map['category'] as String? ?? 'Lain-lain',
+      stock: (map['stock'] as num? ?? 0).toInt(),
+    );
   }
 
   factory Product.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-
-    String imageUrl = data['image'] as String? ?? '';
-    if (imageUrl.isEmpty) {
-      imageUrl = 'https://picsum.photos/seed/${doc.id}/200/300';
-    }
-
-    int stock = (data['stock'] as num?)?.toInt() ?? (data['stok'] as num?)?.toInt() ?? 0;
-
-    return Product(
-      id: doc.id,
-      name: data['name'] as String? ?? 'No Name',
-      price: _parsePrice(data['price']),
-      imageUrl: imageUrl,
-      stock: stock,
-      category: data['category'] as String? ?? '',
-      description: data['description'] as String? ?? '',
-      createdAt: data['createdAt'] as Timestamp?,
-      updatedAt: data['updated_at'] as String?,
-    );
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    // All data conversion is now centralized in the robust fromMap factory.
+    return Product.fromMap(data);
   }
 }

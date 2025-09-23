@@ -12,7 +12,7 @@ class CartProvider with ChangeNotifier {
 
   CartProvider(this._firestoreService, this._uid) {
     if (_uid != null) {
-      _firestoreService.getCartStream(_uid!).listen((items) {
+      _firestoreService.getCartStream(_uid).listen((items) {
         _items = {for (var item in items) item.product.id: item};
         notifyListeners();
       });
@@ -21,7 +21,7 @@ class CartProvider with ChangeNotifier {
 
   Map<String, CartItem> get items => {..._items};
 
-  int get itemCount => _items.length;
+  int get itemCount => _items.values.fold(0, (sum, item) => sum + item.quantity);
 
   double get totalAmount {
     var total = 0.0;
@@ -31,25 +31,35 @@ class CartProvider with ChangeNotifier {
     return total;
   }
 
-  void addItem(Product product) {
-    if (_uid == null) return;
+  // --- FIX: Modified addItem to accept an optional quantity ---
+  void addItem(Product product, {int quantity = 1}) {
+    if (_uid == null || quantity <= 0) return;
 
     if (_items.containsKey(product.id)) {
+      // If the item already exists, increase its quantity
       _items.update(
         product.id,
-        (existingCartItem) => CartItem(
-          product: existingCartItem.product,
-          quantity: existingCartItem.quantity + 1,
-        ),
+        (existingCartItem) {
+          final newQuantity = existingCartItem.quantity + quantity;
+          // Clamp the quantity to the available stock
+          final validatedQuantity = newQuantity > product.stock ? product.stock : newQuantity;
+          return CartItem(
+            product: existingCartItem.product,
+            quantity: validatedQuantity,
+          );
+        },
       );
     } else {
+      // If the item is new, add it to the cart
+      // Clamp the quantity to the available stock
+      final validatedQuantity = quantity > product.stock ? product.stock : quantity;
       _items.putIfAbsent(
         product.id,
-        () => CartItem(product: product, quantity: 1),
+        () => CartItem(product: product, quantity: validatedQuantity),
       );
     }
 
-    _firestoreService.updateCart(_uid!, _items.values.toList());
+    _firestoreService.updateCart(_uid, _items.values.toList());
     notifyListeners();
   }
 
@@ -58,8 +68,32 @@ class CartProvider with ChangeNotifier {
 
     _items.remove(productId);
 
-    _firestoreService.updateCart(_uid!, _items.values.toList());
+    _firestoreService.updateCart(_uid, _items.values.toList());
     notifyListeners();
+  }
+
+  void updateItemQuantity(String productId, int quantity) {
+    if (_uid == null) return;
+
+    if (_items.containsKey(productId)) {
+      if (quantity > 0) {
+        _items.update(
+          productId,
+          (existingCartItem) {
+            // Clamp the quantity to the available stock
+            final validatedQuantity = quantity > existingCartItem.product.stock ? existingCartItem.product.stock : quantity;
+            return CartItem(
+              product: existingCartItem.product,
+              quantity: validatedQuantity,
+            );
+          },
+        );
+      } else {
+        _items.remove(productId);
+      }
+      _firestoreService.updateCart(_uid, _items.values.toList());
+      notifyListeners();
+    }
   }
 
   void clearCart() {
@@ -67,7 +101,7 @@ class CartProvider with ChangeNotifier {
 
     _items = {};
 
-    _firestoreService.updateCart(_uid!, []);
+    _firestoreService.updateCart(_uid, []);
     notifyListeners();
   }
 }
