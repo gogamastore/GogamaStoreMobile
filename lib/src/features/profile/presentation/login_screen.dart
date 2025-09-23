@@ -3,22 +3,22 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../services/auth_service.dart';
+import '../../authentication/data/auth_service.dart';
 
-class SignUpScreen extends StatefulWidget {
-  const SignUpScreen({super.key});
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
 
   @override
-  State<SignUpScreen> createState() => _SignUpScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _SignUpScreenState extends State<SignUpScreen> {
+class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
-  Future<void> _signUp() async {
+  Future<void> _signIn() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -28,35 +28,33 @@ class _SignUpScreenState extends State<SignUpScreen> {
     String? errorMessage;
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
-      // The service returns a User object directly.
-      final user = await authService.signUpWithEmailAndPassword(
+      final user = await authService.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
       if (user != null) {
-        // After successful sign-up, create a user document in Firestore.
-        await FirebaseFirestore.instance
-            .collection('users')
-            // Access uid and email directly from the user object.
+        // User is authenticated, now check Firestore role in the correct 'user' collection.
+        final userDoc = await FirebaseFirestore.instance
+            .collection('user') // <<< CORRECTED from 'users' to 'user'
             .doc(user.uid)
-            .set({
-          'email': user.email,
-          'role': 'reseller',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-        // The auth state listener will automatically navigate the user in.
+            .get();
+
+        if (!userDoc.exists || userDoc.data()?['role'] != 'reseller') {
+          await authService.signOut();
+          errorMessage = 'Hanya akun reseller yang diizinkan masuk.';
+        }
       }
     } on FirebaseException catch (e) {
-      if (e.code == 'email-already-in-use') {
-        errorMessage = 'Email ini sudah terdaftar. Silakan masuk.';
-      } else if (e.code == 'weak-password') {
-        errorMessage = 'Kata sandi terlalu lemah. Gunakan minimal 6 karakter.';
-      } else {
-        errorMessage = 'Terjadi kesalahan saat pendaftaran.';
-      }
+        if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
+            errorMessage = 'Email atau kata sandi salah.';
+        } else if (e.code == 'invalid-email') {
+            errorMessage = 'Format email tidak valid.';
+        } else {
+            errorMessage = 'Terjadi kesalahan. Silakan coba lagi.';
+        }
     } catch (e) {
-      errorMessage = 'Terjadi kesalahan yang tidak diketahui.';
+        errorMessage = 'Terjadi kesalahan yang tidak diketahui.';
     }
 
     if (mounted) {
@@ -77,7 +75,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Daftar Akun Reseller')),
+      appBar: AppBar(title: const Text('Masuk Reseller')),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -87,9 +85,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Buat Akun Baru', style: textTheme.headlineSmall),
+                Text('Selamat Datang Kembali', style: textTheme.headlineSmall),
                 const SizedBox(height: 8),
-                Text('Isi detail di bawah untuk mendaftar', style: textTheme.bodyMedium),
+                Text('Masuk ke akun reseller Anda', style: textTheme.bodyMedium),
                 const SizedBox(height: 32),
                 TextFormField(
                   controller: _emailController,
@@ -108,8 +106,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   decoration: const InputDecoration(labelText: 'Password'),
                   obscureText: true,
                   validator: (value) {
-                    if (value == null || value.length < 6) {
-                      return 'Kata sandi harus terdiri dari minimal 6 karakter';
+                    if (value == null || value.isEmpty) {
+                      return 'Masukkan kata sandi Anda';
                     }
                     return null;
                   },
@@ -118,21 +116,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 _isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : ElevatedButton(
-                        onPressed: _signUp,
+                        onPressed: _signIn,
                         style: ElevatedButton.styleFrom(minimumSize: const Size(0, 50)),
-                        child: const Text('Daftar'),
+                        child: const Text('Masuk'),
                       ),
                 const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('Sudah punya akun? ', style: textTheme.bodyMedium),
+                    Text('Belum punya akun? ', style: textTheme.bodyMedium),
                     TextButton(
                       onPressed: () {
-                        // Navigate back to the login screen
-                        context.go('/'); // Assuming login is at the root or another defined path
+                        context.go('/signup');
                       },
-                      child: const Text('Masuk di sini'),
+                      child: const Text('Daftar di sini'),
                     ),
                   ],
                 )

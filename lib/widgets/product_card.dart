@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../models/product.dart';
+import '../src/features/products/domain/product.dart';
 
 class ProductCard extends StatelessWidget {
   final Product product;

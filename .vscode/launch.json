@@ -1,0 +1,14 @@
+
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run and Debug",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            // Use 0.0.0.0 to listen on all interfaces
+            "args": ["--web-hostname", "0.0.0.0"]
+        }
+    ]
+}

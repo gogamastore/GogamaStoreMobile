@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/product.dart';
-import '../services/firestore_service.dart';
-import '../widgets/product_card.dart';
+import '../domain/product.dart';
+import '../../../core/data/firestore_service.dart';
+import '../../widgets/product_card.dart';
 
 class CatalogScreen extends StatefulWidget {
   const CatalogScreen({super.key});
