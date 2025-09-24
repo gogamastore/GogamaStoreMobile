@@ -24,6 +24,7 @@ class AuthService with ChangeNotifier {
       _appUser = null;
     } else {
       try {
+        // By using a new snapshot, we ensure we get the latest user data
         final doc = await _firestore.collection('user').doc(firebaseUser.uid).get();
         if (doc.exists) {
           _appUser = AppUser.fromFirestore(doc);
@@ -71,7 +72,6 @@ class AuthService with ChangeNotifier {
 
   Future<User?> signUpWithEmailAndPassword({required String email, required String password}) async {
     try {
-      // 1. Create user in Firebase Authentication
       final userCredential = await _firebaseAuth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -79,11 +79,11 @@ class AuthService with ChangeNotifier {
 
       final user = userCredential.user;
       if (user != null) {
-        // 2. Create a document for the new user in Firestore
         await _firestore.collection('user').doc(user.uid).set({
           'email': user.email,
-          'displayName': '', // Initially empty
+          'displayName': '', // Initially empty, to be set in profile
           'photoURL': '', // Initially empty
+          'whatsapp': '', // Initially empty
           'createdAt': FieldValue.serverTimestamp(),
         });
       }
@@ -94,18 +94,15 @@ class AuthService with ChangeNotifier {
     }
   }
 
-  Future<User?> signInAnonymously() async {
-    // This method should likely be removed or re-evaluated, 
-    // as anonymous users don't have persistent profiles.
-    try {
-      final userCredential = await _firebaseAuth.signInAnonymously();
-      return userCredential.user;
-    } on FirebaseAuthException {
-      rethrow;
-    }
-  }
-
   Future<void> signOut() async {
     await _firebaseAuth.signOut();
+  }
+
+  /// Manually refetches user data from Firestore and notifies listeners.
+  Future<void> reloadUser() async {
+    final firebaseUser = _firebaseAuth.currentUser;
+    if (firebaseUser != null) {
+      await _onAuthStateChanged(firebaseUser);
+    }
   }
 }

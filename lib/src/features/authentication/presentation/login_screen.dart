@@ -40,7 +40,6 @@ class _LoginScreenState extends State<LoginScreen> {
             email: _emailController.text.trim(),
             password: _passwordController.text.trim(),
           );
-      // The router's redirect logic will handle navigation upon successful login.
     } catch (e) {
       developer.log('Login failed', error: e, name: 'LoginScreen');
       setState(() {
@@ -61,7 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
       appBar: AppBar(
         title: const Text('Login'),
         centerTitle: true,
-        automaticallyImplyLeading: false, // Prevents a back button
+        automaticallyImplyLeading: false,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -138,13 +137,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: const Text('Login'),
                     ),
               const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   const Text('Belum punya akun?'),
                   TextButton(
                     onPressed: () {
-                      // TODO: Navigate to Sign Up Screen by changing the router state
+                      // TODO: Navigate to Sign Up Screen
                     },
                     child: const Text('Daftar di sini'),
                   ),

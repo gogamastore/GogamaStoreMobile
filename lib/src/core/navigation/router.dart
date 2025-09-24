@@ -5,7 +5,9 @@ import 'package:myapp/src/features/authentication/presentation/login_screen.dart
 import 'package:myapp/src/features/products/presentation/home_screen.dart';
 
 import '../../features/cart/presentation/cart_screen.dart';
-import '../../features/profile/presentation/profile_screen.dart'; 
+import '../../features/orders/presentation/order_history_screen.dart';
+import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/profile/presentation/edit_profile_screen.dart';
 import '../../features/products/domain/product.dart';
 import '../../features/products/presentation/catalog_screen.dart';
 import '../../features/products/presentation/product_detail_screen.dart';
@@ -23,16 +25,14 @@ class AppRouter {
       final bool loggingIn = state.matchedLocation == '/login';
 
       if (!loggedIn) {
-        // If not logged in, the only allowed route is /login
         return loggingIn ? null : '/login';
       }
 
-      // If logged in and trying to access /login, redirect to home
       if (loggingIn) {
         return '/';
       }
 
-      return null; // No redirect needed
+      return null;
     },
     routes: [
       StatefulShellRoute.indexedStack(
@@ -64,6 +64,18 @@ class AppRouter {
                 path: '/profile',
                 name: 'profile',
                 builder: (context, state) => const ProfileScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'edit',
+                    name: 'editProfile',
+                    builder: (context, state) => const EditProfileScreen(),
+                  ),
+                  GoRoute(
+                    path: 'orders',
+                    name: 'orderHistory',
+                    builder: (context, state) => const OrderHistoryScreen(),
+                  ),
+                ],
               ),
             ],
           ),
@@ -87,7 +99,6 @@ class AppRouter {
         name: 'cart',
         builder: (context, state) => const CartScreen(),
       ),
-      // Add the login screen route
       GoRoute(
         path: '/login',
         name: 'login',

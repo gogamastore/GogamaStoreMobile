@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../authentication/data/auth_service.dart';
@@ -111,8 +112,8 @@ class ProfileScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             _buildStatItem(context, '12', 'Pesanan'),
-            _buildStatItem(context, '0', 'Favorit'),
-            _buildStatItem(context, '0', 'Review'),
+            _buildStatItem(context, '0', 'Dikirim'),
+            _buildStatItem(context, '0', 'Selesai'),
           ],
         ),
       ),
@@ -138,8 +139,8 @@ class ProfileScreen extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Column(
         children: [
-          _buildMenuListItem(context, icon: Icons.person_outline, title: 'Profil Saya', subtitle: 'Kelola profil dan informasi pribadi', color: Colors.blue, onTap: () {}),
-          _buildMenuListItem(context, icon: Icons.history, title: 'Riwayat Pesanan', subtitle: 'Lihat status dan riwayat pemesanan', color: Colors.orange, onTap: () {}),
+          _buildMenuListItem(context, icon: Icons.person_outline, title: 'Profil Saya', subtitle: 'Kelola profil dan informasi pribadi', color: Colors.blue, onTap: () => context.go('/profile/edit')),
+          _buildMenuListItem(context, icon: Icons.history, title: 'Riwayat Pesanan', subtitle: 'Lihat status dan riwayat pemesanan', color: Colors.orange, onTap: () => context.go('/profile/orders')),
           _buildMenuListItem(context, icon: Icons.location_on_outlined, title: 'Alamat Pengiriman', subtitle: 'Kelola alamat untuk pengiriman', color: Colors.green, onTap: () {}),
           _buildMenuListItem(context, icon: Icons.support_agent, title: 'Contact', subtitle: 'Hubungi kami dan akun official', color: Colors.lightGreen, onTap: () {}),
           _buildMenuListItem(context, icon: Icons.help_outline, title: 'Pusat Bantuan', subtitle: 'FAQ dan dukungan pelanggan', color: Colors.purple, onTap: () {}),
