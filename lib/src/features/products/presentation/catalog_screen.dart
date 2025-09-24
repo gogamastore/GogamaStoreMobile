@@ -88,9 +88,9 @@ class _CatalogScreenState extends State<CatalogScreen> {
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 // Decreased from 0.7 to 0.6 to make cards taller.
-                childAspectRatio: 0.6,
-                crossAxisSpacing: 8.0,
-                mainAxisSpacing: 8.0,
+                childAspectRatio: 0.5,
+                crossAxisSpacing: 9.0,
+                mainAxisSpacing: 9.0,
               ),
               itemCount: products.length,
               itemBuilder: (context, index) {

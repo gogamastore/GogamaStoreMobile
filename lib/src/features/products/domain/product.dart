@@ -21,52 +21,50 @@ class Product {
 
   Map<String, dynamic> toMap() {
     return {
-      // NOTE: Storing as 'image' to match the definitive field name from Firestore.
       'id': id,
       'name': name,
       'description': description,
       'price': price,
-      'image': imageUrl, // Write back using the correct field name.
+      'image': imageUrl,
       'category': category,
       'stock': stock,
     };
   }
 
-  // --- DEFINITIVE FIX for data loading issues ---
   factory Product.fromMap(Map<String, dynamic> map) {
     double parsedPrice = 0.0;
     final priceValue = map['price'];
 
     if (priceValue is num) {
-      // Case 1: The price is already a number (the ideal case).
       parsedPrice = priceValue.toDouble();
     } else if (priceValue is String) {
-      // Case 2: The price is a formatted string (e.g., "Rp 40.000").
       try {
-        // Clean the string by removing all non-digit characters.
         final cleanString = priceValue.replaceAll(RegExp(r'[^0-9]'), '');
         parsedPrice = double.tryParse(cleanString) ?? 0.0;
       } catch (_) {
-        // If parsing fails for any reason, default to 0.0.
         parsedPrice = 0.0;
       }
     }
 
     return Product(
+      // This now correctly receives the 'id' from the fromFirestore factory.
       id: map['id'] as String? ?? '',
       name: map['name'] as String? ?? 'Nama Tidak Diketahui',
       description: map['description'] as String? ?? '',
-      price: parsedPrice, // Use the safely parsed price.
-      // --- FIX: Using the correct 'image' field from Firestore data ---
-      imageUrl: map['image'] as String? ?? '', // The internal variable is still imageUrl for consistency.
+      price: parsedPrice,
+      imageUrl: map['image'] as String? ?? '',
       category: map['category'] as String? ?? 'Lain-lain',
       stock: (map['stock'] as num? ?? 0).toInt(),
     );
   }
 
+  // --- THE DEFINITIVE FIX ---
   factory Product.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
-    // All data conversion is now centralized in the robust fromMap factory.
+    // CRITICAL FIX: Manually insert the document's ID into the data map.
+    // This ensures that fromMap can access the ID and create a valid Product object.
+    data['id'] = doc.id;
+    // Now, delegate to fromMap, which will correctly assemble the object.
     return Product.fromMap(data);
   }
 }

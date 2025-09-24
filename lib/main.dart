@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -13,43 +12,52 @@ import 'src/core/theme/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  setPathUrlStrategy();
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
+  
+  // Create instances of the services
   final authService = AuthService();
-  if (authService.currentUser == null) {
-    await authService.signInAnonymously();
-  }
+  
+  // Wait for the initial auth state to be determined
+  await authService.authStateChanges.first;
 
-  setPathUrlStrategy();
-  runApp(const MyApp());
+  // Create the router and run the app
+  final appRouter = AppRouter(authService);
+  runApp(MyApp(appRouter: appRouter, authService: authService));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, required this.appRouter, required this.authService});
+
+  final AppRouter appRouter;
+  final AuthService authService;
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<AuthService>(create: (_) => AuthService()),
+        ChangeNotifierProvider<AuthService>.value(value: authService),
         Provider<FirestoreService>(create: (_) => FirestoreService()),
-        StreamProvider<User?>(
-          create: (context) => context.read<AuthService>().authStateChanges,
-          initialData: FirebaseAuth.instance.currentUser,
-        ),
-        ChangeNotifierProxyProvider<User?, CartProvider>(
-          create: (context) => CartProvider(context.read<FirestoreService>(), null),
-          update: (context, user, previous) => CartProvider(context.read<FirestoreService>(), user?.uid),
+        ChangeNotifierProxyProvider<AuthService, CartProvider>(
+          create: (context) => CartProvider(
+            context.read<FirestoreService>(),
+            context.read<AuthService>().currentUser?.uid,
+          ),
+          update: (context, auth, previous) => CartProvider(
+            context.read<FirestoreService>(),
+            auth.currentUser?.uid,
+          ),
         ),
       ],
       child: MaterialApp.router(
-            routerConfig: router,
-            title: 'Gogama Store',
-            theme: ThemeProvider.lightTheme,
-            debugShowCheckedModeBanner: false,
-          ),
+        routerConfig: appRouter.router,
+        title: 'Gogama Store',
+        theme: ThemeProvider.lightTheme,
+        debugShowCheckedModeBanner: false,
+      ),
     );
   }
 }

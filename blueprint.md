@@ -1,4 +1,3 @@
-
 # Blueprint: Migrasi Gogamastore ke Flutter
 
 ## 1. Ikhtisar
@@ -18,7 +17,7 @@ Dokumen ini menguraikan rencana untuk memigrasikan aplikasi e-commerce "Gogamast
     - Riwayat Pesanan & Manajemen Profil
     - Notifikasi Push
 
-## 3. Rencana Migrasi & Arsitektur Flutter
+## 3. Arsitektur dan Desain Flutter
 
 ### Gaya & Desain
 
@@ -26,21 +25,22 @@ Dokumen ini menguraikan rencana untuk memigrasikan aplikasi e-commerce "Gogamast
 - **Tipografi**: Gunakan paket `google_fonts` untuk tipografi yang bersih dan mudah dibaca yang cocok untuk aplikasi e-commerce.
 - **Aset**: Migrasikan aset yang relevan (logo, ikon) dari proyek asli.
 
-### Arsitektur yang Direncanakan
+### Arsitektur yang Diterapkan
 
-- **Manajemen Status**: Gunakan `provider` (dengan `ChangeNotifier`) untuk mengelola status di seluruh aplikasi, seperti status otentikasi pengguna, item keranjang, dan tema.
-- **Navigasi**: Gunakan paket `go_router` untuk menangani perutean deklaratif, tautan dalam, dan pengalihan berbasis otentikasi. Ini sangat ideal untuk aplikasi e-commerce yang kompleks.
+- **Manajemen Status**: Menggunakan `provider` (dengan `ChangeNotifier`) untuk mengelola status di seluruh aplikasi, seperti status otentikasi pengguna, item keranjang, dan tema.
+- **Navigasi**: Menggunakan paket `go_router` untuk menangani perutean deklaratif. 
+    - **Keputusan Desain Penting**: Untuk navigasi ke halaman detail (misalnya, dari katalog ke detail produk), **selalu gunakan `context.push()`**, bukan `context.go()`. Ini akan "mendorong" halaman baru ke atas tumpukan, yang secara otomatis memastikan **tombol kembali muncul di AppBar**. `context.go()` akan mereset tumpukan dan menghilangkan tombol kembali.
 - **Struktur Proyek**: Atur file berdasarkan fitur (misalnya, `lib/src/features/authentication`, `lib/src/features/products`). Setiap fitur akan berisi layarnya sendiri, layanan, dan widget.
-- **Layanan Backend**: Buat kelas layanan untuk berinteraksi dengan Firebase (misalnya, `AuthService`, `FirestoreService`) dan backend Python.
+- **Layanan Backend**: Kelas layanan dibuat untuk berinteraksi dengan Firebase (misalnya, `AuthService`, `FirestoreService`).
 
-## 4. Rencana Implementasi Saat Ini
+## 4. Rencana Implementasi Saat Ini: Auto-Slide Banner
 
-**Fase 1: Fondasi & Otentikasi**
+**Tujuan**: Membuat banner di halaman beranda menjadi auto-slide setiap 6 detik untuk meningkatkan dinamisme UI.
 
-1.  **Inisialisasi Proyek**: Proyek Flutter dasar telah dibuat.
-2.  **Tambahkan Ketergantungan**: Tambahkan `google_fonts`, `provider`, `go_router`, `firebase_core`, dan `firebase_auth`.
-3.  **Konfigurasi Firebase**: Siapkan Firebase di proyek Flutter agar dapat terhubung ke backend Firebase yang ada.
-4.  **Siapkan Perutean (`go_router`)**: Tentukan rute awal untuk layar splash, login, registrasi, dan halaman beranda (setelah login). Implementasikan pengalihan untuk melindungi rute yang diautentikasi.
-5.  **Buat UI Otentikasi**: Bangun widget untuk layar Login dan Registrasi berdasarkan UI React Native yang ada.
-6.  **Implementasikan Logika Otentikasi**: Buat `AuthService` yang menangani logika untuk `signInWithEmailAndPassword`, `createUserWithEmailAndPassword`, dan `signOut`. Gunakan `AuthProvider` untuk mengekspos status otentikasi ke pohon widget.
-
+1.  **Identifikasi Widget**: Target modifikasi adalah widget banner di `lib/src/features/products/presentation/home_screen.dart`.
+2.  **Konversi ke StatefulWidget**: Ubah widget banner menjadi `StatefulWidget` untuk mengelola `Timer` dan `PageController`.
+3.  **Implementasikan Logika Auto-Slide**:
+    - Inisialisasi `PageController` dan `Timer` di dalam `initState`.
+    - Atur `Timer` untuk memicu pergantian halaman setiap 6 detik menggunakan `pageController.nextPage()`.
+    - Tangani *looping* agar kembali ke halaman pertama setelah mencapai akhir.
+    - Hentikan `Timer` di `dispose` untuk mencegah kebocoran memori.

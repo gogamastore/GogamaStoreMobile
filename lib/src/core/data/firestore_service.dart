@@ -4,9 +4,33 @@ import 'package:rxdart/rxdart.dart';
 
 import '../../features/products/domain/product.dart';
 import '../../features/cart/domain/cart_item.dart';
+import '../../features/products/domain/banner_item.dart';
+import '../../features/products/domain/brand.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  // --- Banner Methods ---
+  Stream<List<BannerItem>> getBannersStream() {
+    return _db
+        .collection('banners')
+        .where('isActive', isEqualTo: true)
+        .orderBy('order')
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => BannerItem.fromMap(doc.data())).toList());
+  }
+
+  // --- Brand Methods ---
+  Stream<List<Brand>> getBrandsStream() {
+    return _db
+        .collection('brands')
+        .orderBy('createdAt', descending: true) // Assuming you want the newest first
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => Brand.fromMap(doc.data())).toList());
+  }
+
 
   // Stream for all products (used in Catalog)
   Stream<List<Product>> getProductsStream() {

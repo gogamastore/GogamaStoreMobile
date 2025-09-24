@@ -67,7 +67,7 @@ class _QuantitySelectorState extends State<QuantitySelector> {
         // --- FIX: Reduced icon size and padding ---
         IconButton(
           icon: const Icon(Icons.remove_circle_outline),
-          iconSize: 28, // Smaller icon
+          iconSize: 22, // Smaller icon
           padding: EdgeInsets.zero,
           onPressed: widget.quantity > 1 ? () => widget.onChanged(widget.quantity - 1) : null,
           color: theme.colorScheme.primary,
@@ -95,7 +95,7 @@ class _QuantitySelectorState extends State<QuantitySelector> {
         // --- FIX: Reduced icon size and padding ---
         IconButton(
           icon: const Icon(Icons.add_circle_outline),
-          iconSize: 28, // Smaller icon
+          iconSize: 22, // Smaller icon
           padding: EdgeInsets.zero,
           onPressed: widget.quantity < widget.stock ? () => widget.onChanged(widget.quantity + 1) : null,
           color: theme.colorScheme.primary,

@@ -1,6 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
-import '../../domain/banner_item.dart'; // Corrected import path
+import '../../domain/banner_item.dart';
 
 class BannerCarousel extends StatefulWidget {
   final List<BannerItem> banners;
@@ -13,6 +15,38 @@ class BannerCarousel extends StatefulWidget {
 
 class _BannerCarouselState extends State<BannerCarousel> {
   int _currentPage = 0;
+  late final PageController _pageController;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: _currentPage);
+    _startTimer();
+  }
+
+  void _startTimer() {
+    if (widget.banners.length < 2) return;
+
+    _timer = Timer.periodic(const Duration(seconds: 6), (timer) {
+      int nextPage = _pageController.page!.round() + 1;
+      if (nextPage >= widget.banners.length) {
+        nextPage = 0;
+      }
+      _pageController.animateToPage(
+        nextPage,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,6 +55,7 @@ class _BannerCarouselState extends State<BannerCarousel> {
         SizedBox(
           height: 200,
           child: PageView.builder(
+            controller: _pageController,
             itemCount: widget.banners.length,
             onPageChanged: (value) {
               setState(() {
@@ -36,11 +71,34 @@ class _BannerCarouselState extends State<BannerCarousel> {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
+                    // --- IMPROVEMENT: Added loading and error builders for robustness ---
                     Image.network(
                       banner.imageUrl,
                       fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                                : null,
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child: Icon(
+                              Icons.broken_image,
+                              size: 60,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                    // Gradient overlay for text readability
                     Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -81,7 +139,6 @@ class _BannerCarouselState extends State<BannerCarousel> {
           ),
         ),
         const SizedBox(height: 10),
-        // Dots indicator
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(widget.banners.length, (index) {

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../core/data/firestore_service.dart';
 import '../domain/product.dart';
 import '../../cart/application/cart_provider.dart';
-// --- FIX: Corrected the import path for the QuantitySelector widget ---
 import 'widgets/quantity_selector.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -25,7 +25,7 @@ class ProductDetailScreen extends StatefulWidget {
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Product? _product;
   Future<Product?>? _fetchProductFuture;
-  int _selectedQuantity = 1; // State for the quantity selector
+  int _selectedQuantity = 1;
 
   @override
   void initState() {
@@ -36,13 +36,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       final firestoreService = Provider.of<FirestoreService>(context, listen: false);
       _fetchProductFuture = firestoreService.getProduct(widget.productId!);
     }
-    // If stock is 0, quantity should also be 0
     if (_product?.stock == 0) {
       _selectedQuantity = 0;
     }
   }
 
-  // Callback for the QuantitySelector
   void _onQuantityChanged(int newQuantity) {
     setState(() {
       _selectedQuantity = newQuantity;
@@ -60,19 +58,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Scaffold(
-            appBar: AppBar(),
+            appBar: AppBar(), // AppBar standar dengan tombol kembali
             body: const Center(child: CircularProgressIndicator()),
           );
         }
         if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
           return Scaffold(
-            appBar: AppBar(title: const Text('Error')),
+            appBar: AppBar(title: const Text('Error')), // AppBar standar dengan tombol kembali
             body: const Center(child: Text('Produk tidak dapat ditemukan.')),
           );
         }
 
         _product = snapshot.data;
-        // If stock is 0, quantity should also be 0
         if (_product?.stock == 0) {
           _selectedQuantity = 0;
         }
@@ -89,7 +86,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
     final theme = Theme.of(context);
 
-    // Ensure selected quantity doesn't exceed stock after a rebuild
     if (_selectedQuantity > product.stock) {
       _selectedQuantity = product.stock;
     }
@@ -107,14 +103,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           children: [
             Hero(
               tag: 'product-image-${product.id}',
-              child: Image.network(
-                product.imageUrl,
+              child: CachedNetworkImage(
+                imageUrl: product.imageUrl,
                 fit: BoxFit.cover,
                 height: 300,
-                errorBuilder: (context, error, stackTrace) => Container(
+                placeholder: (context, url) => Container(
                   height: 300,
                   color: Colors.grey[200],
-                  child: const Center(child: Icon(Icons.broken_image, size: 60)),
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+                errorWidget: (context, url, error) => Container(
+                  height: 300,
+                  color: Colors.grey[200],
+                  child: const Center(child: Icon(Icons.broken_image, size: 60, color: Colors.grey)),
                 ),
               ),
             ),
@@ -135,11 +136,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   const SizedBox(height: 16),
                   Text(
                     product.description,
-                    style: theme.textTheme.bodyLarge,
+                    style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
                   ),
                   const SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Stok: ${product.stock}',
@@ -148,11 +150,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      Text(
-                        currencyFormatter.format(product.price),
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.bold,
+                      const SizedBox(width: 16),
+                      Flexible(
+                        child: Text(
+                          currencyFormatter.format(product.price),
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.right,
                         ),
                       ),
                     ],
@@ -163,38 +169,44 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (product.stock > 0)
-              QuantitySelector(
-                quantity: _selectedQuantity,
-                stock: product.stock,
-                onChanged: _onQuantityChanged,
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (product.stock > 0)
+                QuantitySelector(
+                  quantity: _selectedQuantity,
+                  stock: product.stock,
+                  onChanged: _onQuantityChanged,
+                ),
+              const SizedBox(height: 14),
+              ElevatedButton.icon(
+                onPressed: _selectedQuantity > 0
+                    ? () {
+                        context.read<CartProvider>().addItem(product, quantity: _selectedQuantity);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('$_selectedQuantity x ${product.name} ditambahkan ke keranjang.'),
+                            duration: const Duration(seconds: 2),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    : null,
+                icon: const Icon(Icons.add_shopping_cart),
+                label: const Text('Tambah ke Keranjang'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                ),
               ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _selectedQuantity > 0
-                  ? () {
-                      context.read<CartProvider>().addItem(product, quantity: _selectedQuantity);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('$_selectedQuantity x ${product.name} ditambahkan ke keranjang.'),
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                    }
-                  : null, // Disable button if quantity is 0
-              icon: const Icon(Icons.add_shopping_cart),
-              label: const Text('Tambah ke Keranjang'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
