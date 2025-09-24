@@ -18,9 +18,6 @@ void main() async {
   
   // Create instances of the services
   final authService = AuthService();
-  
-  // Wait for the initial auth state to be determined
-  await authService.authStateChanges.first;
 
   // Create the router and run the app
   final appRouter = AppRouter(authService);

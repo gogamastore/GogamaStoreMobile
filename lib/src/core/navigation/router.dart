@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myapp/src/features/authentication/data/auth_service.dart';
 import 'package:myapp/src/features/authentication/presentation/login_screen.dart';
+import 'package:myapp/src/features/authentication/presentation/splash_screen.dart'; // Import splash screen
 import 'package:myapp/src/features/products/presentation/home_screen.dart';
 
 import '../../features/cart/presentation/cart_screen.dart';
@@ -21,22 +22,41 @@ class AppRouter {
   AppRouter(this.authService);
 
   late final router = GoRouter(
+    initialLocation: '/splash', // Mulai dari splash screen
     refreshListenable: authService,
     redirect: (BuildContext context, GoRouterState state) {
-      final bool loggedIn = authService.currentUser != null;
-      final bool loggingIn = state.matchedLocation == '/login';
+      final authStatus = authService.authStatus;
+      final bool loggedIn = authStatus == AuthStatus.authenticated;
+      
+      final bool onSplash = state.matchedLocation == '/splash';
+      final bool onLogin = state.matchedLocation == '/login';
 
-      if (!loggedIn) {
-        return loggingIn ? null : '/login';
+      // Jika status belum diketahui, tetap di splash screen
+      if (authStatus == AuthStatus.unknown) {
+        return onSplash ? null : '/splash';
       }
 
-      if (loggingIn) {
-        return '/';
+      // Jika sudah login
+      if (loggedIn) {
+        // Jika pengguna berada di halaman login atau splash, alihkan ke beranda
+        if (onLogin || onSplash) {
+          return '/';
+        }
+      } else { // Jika belum login
+        // Jika pengguna tidak berada di halaman login, alihkan ke sana
+        if (!onLogin) {
+          return '/login';
+        }
       }
 
+      // Tidak perlu pengalihan
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/splash', // Tambahkan route untuk splash screen
+        builder: (context, state) => const SplashScreen(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return ScaffoldWithNavBar(navigationShell: navigationShell);

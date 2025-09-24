@@ -5,31 +5,44 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../domain/app_user.dart';
 
+enum AuthStatus {
+  unknown,
+  authenticated,
+  unauthenticated,
+}
+
 class AuthService with ChangeNotifier {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   AppUser? _appUser;
+  AuthStatus _authStatus = AuthStatus.unknown;
 
   late StreamSubscription<User?> _authStateChangesSubscription;
 
   AuthService() {
+    // We listen to auth state changes and update our own status
     _authStateChangesSubscription = _firebaseAuth.authStateChanges().listen(_onAuthStateChanged);
+    // Check the initial user state
+    _onAuthStateChanged(_firebaseAuth.currentUser);
   }
 
   AppUser? get currentUser => _appUser;
+  AuthStatus get authStatus => _authStatus;
 
   Future<void> _onAuthStateChanged(User? firebaseUser) async {
     if (firebaseUser == null) {
       _appUser = null;
+      _authStatus = AuthStatus.unauthenticated;
     } else {
       try {
-        // By using a new snapshot, we ensure we get the latest user data
         final doc = await _firestore.collection('user').doc(firebaseUser.uid).get();
         if (doc.exists) {
           _appUser = AppUser.fromFirestore(doc);
+          _authStatus = AuthStatus.authenticated;
         } else {
           _appUser = null;
+          _authStatus = AuthStatus.unauthenticated; // User exists in Auth but not Firestore
           developer.log(
             'Firestore document for user ${firebaseUser.uid} not found.',
             name: 'AuthService',
@@ -45,6 +58,7 @@ class AuthService with ChangeNotifier {
           stackTrace: s,
         );
         _appUser = null;
+        _authStatus = AuthStatus.unauthenticated; // Treat errors as unauthenticated
       }
     }
     notifyListeners();

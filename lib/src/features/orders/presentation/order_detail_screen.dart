@@ -396,7 +396,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         children: [
           Icon(isPaid ? Icons.check_circle : (isWaiting ? Icons.hourglass_top : Icons.schedule), color: color[700]),
           const SizedBox(width: 8),
-          Text('Status Pembayaran: $status', style: TextStyle(fontWeight: FontWeight.bold, color: color[700])),
+          Expanded(
+            child: Text(
+              'Status Pembayaran: $status',
+              style: TextStyle(fontWeight: FontWeight.bold, color: color[700]),
+            ),
+          ),
         ],
       ),
     );
