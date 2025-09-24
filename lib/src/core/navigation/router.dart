@@ -6,6 +6,8 @@ import 'package:myapp/src/features/products/presentation/home_screen.dart';
 
 import '../../features/cart/presentation/cart_screen.dart';
 import '../../features/orders/presentation/order_history_screen.dart';
+import '../../features/orders/presentation/order_detail_screen.dart';
+import '../../features/orders/domain/order.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/profile/presentation/edit_profile_screen.dart';
 import '../../features/products/domain/product.dart';
@@ -98,6 +100,14 @@ class AppRouter {
         path: '/cart',
         name: 'cart',
         builder: (context, state) => const CartScreen(),
+      ),
+      GoRoute(
+        path: '/order-detail',
+        name: 'orderDetail',
+        builder: (context, state) {
+          final order = state.extra as Order;
+          return OrderDetailScreen(order: order);
+        },
       ),
       GoRoute(
         path: '/login',

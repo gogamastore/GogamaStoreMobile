@@ -1,46 +1,50 @@
-# Blueprint: Migrasi Gogamastore ke Flutter
 
-## 1. Ikhtisar
+# Application Blueprint
 
-Dokumen ini menguraikan rencana untuk memigrasikan aplikasi e-commerce "Gogamastore" yang ada dari React Native (Expo) ke Flutter. Tujuan utamanya adalah mereplikasi semua fungsionalitas yang ada sambil memanfaatkan keunggulan Flutter untuk kinerja, basis kode tunggal, dan pengalaman pengguna yang kaya.
+## Overview
 
-## 2. Analisis Aplikasi yang Ada
+This document outlines the core structure, design principles, and technical architecture of the Gogama Store application. It serves as a single source of truth for development, ensuring consistency and clarity across all features.
 
-- **Framework**: React Native (Expo)
-- **Navigasi**: Navigasi berbasis file (Stack dan Tab)
-- **Backend**: Firebase (Authentication, Firestore) & Backend Python kustom.
-- **Fitur Inti**:
-    - Otentikasi Pengguna (Login/Registrasi)
-    - Katalog Produk dengan Pencarian & Detail
-    - Keranjang Belanja
-    - Alur Checkout & Pembayaran
-    - Riwayat Pesanan & Manajemen Profil
-    - Notifikasi Push
+## Firestore Data Structure
 
-## 3. Arsitektur dan Desain Flutter
+This section details the schema for the Firestore collections used in the application.
 
-### Gaya & Desain
+### `orders` Collection
 
-- **Tema**: Implementasikan sistem tema Material 3 penuh dengan mode Terang dan Gelap. Gunakan `ColorScheme.fromSeed` untuk palet warna yang konsisten.
-- **Tipografi**: Gunakan paket `google_fonts` untuk tipografi yang bersih dan mudah dibaca yang cocok untuk aplikasi e-commerce.
-- **Aset**: Migrasikan aset yang relevan (logo, ikon) dari proyek asli.
+This collection stores all customer order information.
 
-### Arsitektur yang Diterapkan
+**Document ID:** `orderId` (auto-generated)
 
-- **Manajemen Status**: Menggunakan `provider` (dengan `ChangeNotifier`) untuk mengelola status di seluruh aplikasi, seperti status otentikasi pengguna, item keranjang, dan tema.
-- **Navigasi**: Menggunakan paket `go_router` untuk menangani perutean deklaratif. 
-    - **Keputusan Desain Penting**: Untuk navigasi ke halaman detail (misalnya, dari katalog ke detail produk), **selalu gunakan `context.push()`**, bukan `context.go()`. Ini akan "mendorong" halaman baru ke atas tumpukan, yang secara otomatis memastikan **tombol kembali muncul di AppBar**. `context.go()` akan mereset tumpukan dan menghilangkan tombol kembali.
-- **Struktur Proyek**: Atur file berdasarkan fitur (misalnya, `lib/src/features/authentication`, `lib/src/features/products`). Setiap fitur akan berisi layarnya sendiri, layanan, dan widget.
-- **Layanan Backend**: Kelas layanan dibuat untuk berinteraksi dengan Firebase (misalnya, `AuthService`, `FirestoreService`).
+| Field                  | Type        | Description                                                                                             | Example                                                                                                                              |
+| ---------------------- | ----------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `created_at`           | `string`    | ISO 8601 timestamp indicating when the order was created.                                               | `"2025-09-20T11:11:32.354Z"`                                                                                                         |
+| `customer`             | `string`    | The name of the customer who placed the order.                                                          | `"Rhey"`                                                                                                                             |
+| `customerDetails`      | `map`       | An object containing detailed information about the customer.                                           | `{ "address": "...", "name": "...", "whatsapp": "..." }`                                                                             |
+| `  ‣ address`          | `string`    | The full shipping address of the customer.                                                              | `"Jl Borong Raya Nomor 100, Makassar, 90234"`                                                                                        |
+| `  ‣ name`             | `string`    | The full name of the customer, for shipping purposes.                                                   | `"Rhey"`                                                                                                                             |
+| `  ‣ whatsapp`         | `string`    | The customer's WhatsApp number, including country code.                                                | `"62895635299075"`                                                                                                                   |
+| `customerId`           | `string`    | The unique user ID (UID) from Firebase Authentication corresponding to the customer.                    | `"8ShveN2c3gbndLn4d95J3Hs4Hjo2"`                                                                                                      |
+| `date`                 | `timestamp` | Firestore timestamp object representing the exact date and time the order was placed.                   | `September 20, 2025 at 7:11:32 PM UTC+8`                                                                                             |
+| `paymentMethod`        | `string`    | The payment method chosen by the customer.                                                              | `"bank_transfer"`                                                                                                                    |
+| `paymentProofFileName` | `string`    | The filename of the uploaded payment proof, if any.                                                     | `""`                                                                                                                                 |
+| `paymentProofId`       | `string`    | A unique ID associated with the payment proof upload.                                                   | `""`                                                                                                                                 |
+| `paymentProofUploaded` | `boolean`   | A flag indicating whether a payment proof has been uploaded.                                            | `false`                                                                                                                              |
+| `paymentProofUrl`      | `string`    | The public URL to the payment proof image stored in Firebase Storage.                                   | `"https://firebasestorage.googleapis.com/.../payment_proof.jpg"`                                                                     |
+| `paymentStatus`        | `string`    | The current status of the payment. Can be `Paid`, `paid`, `Unpaid`, or `unpaid`.                        | `"Paid"`                                                                                                                             |
+| `productIds`           | `array`     | An array of strings, where each string is the `productId` of an item in the order.                      | `["AC3Humo7XxFxQFQkYsK2"]`                                                                                                            |
+| `products`             | `array`     | An array of maps, where each map represents a product line item in the order.                           | `[{ "image": "...", "name": "...", "price": ..., "productId": "...", "quantity": ... }]`                                              |
+| `  ‣ image`            | `string`    | URL to the product image.                                                                               | `"https://firebasestorage.googleapis.com/.../product_image.webp"`                                                                    |
+| `  ‣ name`             | `string`    | The name of the product.                                                                                | `"Azarine Barrier Moisturizer 30gr"`                                                                                                 |
+| `  ‣ price`            | `number`    | The price of a single unit of the product at the time of purchase.                                      | `43000`                                                                                                                              |
+| `  ‣ productId`        | `string`    | The unique ID of the product.                                                                           | `"AC3Humo7XxFxQFQkYsK2"`                                                                                                             |
+| `  ‣ quantity`         | `number`    | The number of units of this product purchased in the order.                                             | `3`                                                                                                                                  |
+| `shippingFee`          | `number`    | The cost of shipping for the order.                                                                     | `15000`                                                                                                                              |
+| `shippingMethod`       | `string`    | The shipping method selected for the order.                                                             | `"Pengiriman oleh Kurir"`                                                                                                            |
+| `status`               | `string`    | The overall status of the order. Handles various casings (`processing`, `Delivered`, etc.).             | `"processing"`                                                                                                                       |
+| `stockUpdateTimestamp` | `string`    | ISO 8601 timestamp indicating when the stock was last updated for this order.                           | `"2025-09-20T11:11:32.348Z"`                                                                                                         |
+| `stockUpdated`         | `boolean`   | A flag to confirm if the stock level has been adjusted after the order was placed.                      | `true`                                                                                                                               |
+| `subtotal`             | `number`    | The total cost of all products before shipping fees.                                                    | `129000`                                                                                                                             |
+| `total`                | `number`    | The final total amount for the order (subtotal + shipping).                                             | `144000`                                                                                                                             |
+| `updatedAt`            | `timestamp` | Firestore timestamp indicating the last time the order document was modified.                           | `September 20, 2025 at 10:24:21 PM UTC+8`                                                                                            |
+| `updated_at`           | `string`    | ISO 8601 timestamp for the last update.                                                                 | `"2025-09-20T11:11:32.354Z"`                                                                                                         |
 
-## 4. Rencana Implementasi Saat Ini: Auto-Slide Banner
-
-**Tujuan**: Membuat banner di halaman beranda menjadi auto-slide setiap 6 detik untuk meningkatkan dinamisme UI.
-
-1.  **Identifikasi Widget**: Target modifikasi adalah widget banner di `lib/src/features/products/presentation/home_screen.dart`.
-2.  **Konversi ke StatefulWidget**: Ubah widget banner menjadi `StatefulWidget` untuk mengelola `Timer` dan `PageController`.
-3.  **Implementasikan Logika Auto-Slide**:
-    - Inisialisasi `PageController` dan `Timer` di dalam `initState`.
-    - Atur `Timer` untuk memicu pergantian halaman setiap 6 detik menggunakan `pageController.nextPage()`.
-    - Tangani *looping* agar kembali ke halaman pertama setelah mencapai akhir.
-    - Hentikan `Timer` di `dispose` untuk mencegah kebocoran memori.

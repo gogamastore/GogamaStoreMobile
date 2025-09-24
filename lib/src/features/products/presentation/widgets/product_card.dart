@@ -55,7 +55,7 @@ class ProductCard extends StatelessWidget {
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
-                fontSize: 16,
+                fontSize: 14,
               ),
             ),
           ),
@@ -73,8 +73,8 @@ class ProductCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              flex: 3,
+            AspectRatio(
+              aspectRatio: 1.0,
               // Conditionally wrap the image with a Hero widget
               child: enableHero
                   ? Hero(
@@ -84,7 +84,6 @@ class ProductCard extends StatelessWidget {
                   : imageWidget,
             ),
             Expanded(
-              flex: 2,
               child: Padding(
                 padding: const EdgeInsets.all(10.0),
                 child: Column(
@@ -127,7 +126,7 @@ class ProductCard extends StatelessWidget {
                         color: theme.colorScheme.primary,
                         fontWeight: FontWeight.bold,
                       ),
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],

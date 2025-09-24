@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../authentication/data/auth_service.dart';
 import '../domain/order.dart';
@@ -14,17 +15,10 @@ class OrderHistoryScreen extends StatefulWidget {
 }
 
 class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
-  String _selectedStatus = 'Belum Proses';
-
-  final Map<String, String> _statusMapping = {
-    'Belum Proses': 'Pending',
-    'Diproses': 'Processing',
-    'Dikirim': 'Delivered',
-    'Selesai': 'Completed',
-    'Dibatalkan': 'Cancelled',
-  };
+  String _selectedStatus = 'Semua';
 
   final List<String> _statusFilters = [
+    'Semua',
     'Belum Proses',
     'Diproses',
     'Dikirim',
@@ -36,6 +30,23 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   void initState() {
     super.initState();
     initializeDateFormatting('id_ID');
+  }
+
+  List<String> _getFirestoreStatuses(String displayStatus) {
+    switch (displayStatus) {
+      case 'Belum Proses':
+        return ['Pending', 'pending'];
+      case 'Diproses':
+        return ['Processing', 'processing'];
+      case 'Dikirim':
+        return ['Delivered', 'delivered'];
+      case 'Selesai':
+        return ['Shipped', 'shipped'];
+      case 'Dibatalkan':
+        return ['Cancelled', 'cancelled'];
+      default:
+        return [];
+    }
   }
 
   @override
@@ -123,15 +134,18 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   }
 
   Widget _buildOrderList(String userId) {
-    final firestoreStatus = _statusMapping[_selectedStatus]!;
+    Query query = FirebaseFirestore.instance
+        .collection('orders')
+        .where('customerId', isEqualTo: userId)
+        .orderBy('date', descending: true);
+
+    if (_selectedStatus != 'Semua') {
+      final firestoreStatuses = _getFirestoreStatuses(_selectedStatus);
+      query = query.where('status', whereIn: firestoreStatuses);
+    }
 
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('orders')
-          .where('customerId', isEqualTo: userId)
-          .where('status', isEqualTo: firestoreStatus)
-          .orderBy('date', descending: true)
-          .snapshots(),
+      stream: query.snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -147,7 +161,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                 Icon(Icons.receipt_long, size: 80, color: Colors.grey[400]),
                 const SizedBox(height: 16),
                 Text(
-                  'Tidak ada pesanan dengan status "$_selectedStatus"',
+                  _selectedStatus == 'Semua' 
+                      ? 'Anda belum memiliki riwayat pesanan'
+                      : 'Tidak ada pesanan dengan status "$_selectedStatus"',
                   style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                   textAlign: TextAlign.center,
                 ),
@@ -175,6 +191,23 @@ class OrderCard extends StatelessWidget {
 
   const OrderCard({super.key, required this.order});
 
+  String _normalizeStatus(String status) {
+    final s = status.toLowerCase();
+    if (s == 'pending') return 'Belum Proses';
+    if (s == 'processing') return 'Diproses';
+    if (s == 'delivered') return 'Dikirim';
+    if (s == 'shipped') return 'Selesai';
+    if (s == 'cancelled') return 'Dibatalkan';
+    return status; // Fallback
+  }
+
+  String _normalizePaymentStatus(String paymentStatus) {
+    final ps = paymentStatus.toLowerCase();
+    if (ps == 'unpaid') return 'Belum Bayar';
+    if (ps == 'paid') return 'Lunas';
+    return paymentStatus; // Fallback
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -183,7 +216,7 @@ class OrderCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () {
-          // TODO: Navigate to Order Detail Screen
+          context.push('/order-detail', extra: order);
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
@@ -195,16 +228,30 @@ class OrderCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('#${order.id.substring(0, 8).toUpperCase()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  _buildStatusChip(order.status),
+                  _buildStatusChip(_normalizeStatus(order.status)),
                 ],
               ),
               Text(order.formattedDate, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
               const Divider(height: 24),
-              Text(order.customer, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 4),
-              Text('${order.totalProducts} produk • ${order.formattedTotal}', style: TextStyle(color: Colors.grey[700])),
-              const SizedBox(height: 8),
-              Text(order.paymentMethod.replaceAll('_', ' ').toUpperCase(), style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(order.customer, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        const SizedBox(height: 4),
+                        Text('${order.totalProducts} produk • ${order.formattedTotal}', style: TextStyle(color: Colors.grey[700])),
+                        const SizedBox(height: 8),
+                        Text(order.paymentMethod.replaceAll('_', ' ').toUpperCase(), style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  _buildPaymentStatusText(_normalizePaymentStatus(order.paymentStatus)),
+                ],
+              ),
               const SizedBox(height: 8),
               const Align(
                 alignment: Alignment.centerRight,
@@ -219,37 +266,54 @@ class OrderCard extends StatelessWidget {
 
   Widget _buildStatusChip(String status) {
     Color chipColor;
-    String chipText = status;
-
     switch (status) {
-      case 'Pending':
+      case 'Belum Proses':
         chipColor = Colors.orange;
-        chipText = 'Belum Proses';
         break;
-      case 'Processing':
+      case 'Diproses':
         chipColor = Colors.blue;
-        chipText = 'Diproses';
         break;
-      case 'Delivered':
+      case 'Dikirim':
         chipColor = Colors.lightGreen;
-        chipText = 'Dikirim';
         break;
-      case 'Completed':
+      case 'Selesai':
         chipColor = Colors.green;
-        chipText = 'Selesai';
         break;
-      case 'Cancelled':
+      case 'Dibatalkan':
         chipColor = Colors.red;
-        chipText = 'Dibatalkan';
         break;
       default:
         chipColor = Colors.grey;
     }
 
     return Chip(
-      label: Text(chipText, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+      label: Text(status, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
       backgroundColor: chipColor,
-      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
+  }
+
+  Widget _buildPaymentStatusText(String paymentStatus) {
+    Color textColor;
+    switch (paymentStatus) {
+      case 'Lunas':
+        textColor = Colors.green[700]!;
+        break;
+      case 'Belum Bayar':
+        textColor = Colors.red[700]!;
+        break;
+      default:
+        textColor = Colors.grey;
+    }
+
+    return Text(
+      paymentStatus,
+      style: TextStyle(
+        color: textColor,
+        fontWeight: FontWeight.bold,
+        fontSize: 14,
+      ),
     );
   }
 }

@@ -1,10 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
+// Helper function to safely convert any value to num
+num _toNum(dynamic value) {
+  if (value == null) return 0;
+  if (value is num) return value;
+  if (value is String) {
+    return num.tryParse(value) ?? 0;
+  }
+  return 0;
+}
+
 class ProductItem {
   final String image;
   final String name;
-  final int price;
+  final num price;
   final String productId;
   final int quantity;
 
@@ -18,11 +28,12 @@ class ProductItem {
 
   factory ProductItem.fromMap(Map<String, dynamic> data) {
     return ProductItem(
-      image: data['image'] ?? '',
+      // Cerdas: Cek 'imageUrl' dulu, baru 'image', atau default ke string kosong
+      image: data['imageUrl'] ?? data['image'] ?? '',
       name: data['name'] ?? 'Unknown Product',
-      price: (data['price'] ?? 0).toInt(),
+      price: _toNum(data['price']),
       productId: data['productId'] ?? '',
-      quantity: (data['quantity'] ?? 0).toInt(),
+      quantity: _toNum(data['quantity']).toInt(),
     );
   }
 }
@@ -36,11 +47,11 @@ class Order {
   final String? paymentProofUrl;
   final String paymentStatus;
   final List<ProductItem> products;
-  final int shippingFee;
+  final num shippingFee;
   final String shippingMethod;
   final String status;
-  final int subtotal;
-  final String total;
+  final num subtotal;
+  final num total;
 
   Order({
     required this.id,
@@ -71,11 +82,11 @@ class Order {
       paymentProofUrl: data['paymentProofUrl'],
       paymentStatus: data['paymentStatus'] ?? 'Unknown',
       products: productList.map((p) => ProductItem.fromMap(p as Map<String, dynamic>)).toList(),
-      shippingFee: (data['shippingFee'] ?? 0).toInt(),
+      shippingFee: _toNum(data['shippingFee']),
       shippingMethod: data['shippingMethod'] ?? 'N/A',
       status: data['status'] ?? 'Unknown',
-      subtotal: (data['subtotal'] ?? 0).toInt(),
-      total: data['total']?.toString() ?? 'Rp 0',
+      subtotal: _toNum(data['subtotal']),
+      total: _toNum(data['total']),
     );
   }
 
@@ -87,6 +98,6 @@ class Order {
 
   String get formattedTotal {
     final numberFormat = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-    return numberFormat.format(subtotal + shippingFee);
+    return numberFormat.format(total);
   }
 }
