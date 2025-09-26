@@ -30,6 +30,7 @@ dependencies:
   rxdart: ^0.28.0
   cached_network_image: ^3.4.0
   image_picker: ^1.2.0
+  dotted_border: ^2.1.0
 
 dev_dependencies:
   flutter_test:

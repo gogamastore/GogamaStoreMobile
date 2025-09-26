@@ -1,13 +1,17 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:rxdart/rxdart.dart';
 
 import '../../features/products/domain/product.dart';
 import '../../features/cart/domain/cart_item.dart';
 import '../../features/products/domain/banner_item.dart';
 import '../../features/products/domain/brand.dart';
+import '../../features/checkout/domain/bank_account.dart';
+import '../../features/profile/domain/address.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -103,8 +107,7 @@ class FirestoreService {
     return null;
   }
 
-  // --- CART METHODS (REBUILT TO MIMIC REACT NATIVE SUCCESS) ---
-
+  // --- CART METHODS ---
   Future<Map<String, dynamic>> getUserCart(String uid) async {
     final cartSnapshot = await _db.collection('user').doc(uid).collection('cart').get();
 
@@ -173,5 +176,56 @@ class FirestoreService {
       batch.delete(doc.reference);
     }
     return batch.commit();
+  }
+
+  // --- CHECKOUT & ORDER METHODS ---
+
+  Future<List<BankAccount>> getActiveBankAccounts() async {
+    final snapshot = await _db.collection('bank_accounts').where('isActive', isEqualTo: true).get();
+    return snapshot.docs.map((doc) => BankAccount.fromFirestore(doc)).toList();
+  }
+
+  Future<List<Address>> getUserAddresses(String uid) async {
+     final snapshot = await _db.collection('user').doc(uid).collection('address').orderBy('isDefault', descending: true).get();
+     return snapshot.docs.map((doc) => Address.fromFirestore(doc)).toList(); // Corrected call
+  }
+
+  Future<bool> batchUpdateStock(List<Map<String, dynamic>> products) async {
+    final batch = _db.batch();
+
+    for (final prod in products) {
+      final productId = prod['productId'] as String;
+      final quantityToReduce = prod['quantity'] as int;
+      final productRef = _db.collection('products').doc(productId);
+      batch.update(productRef, {'stock': FieldValue.increment(-quantityToReduce)});
+    }
+
+    try {
+      await batch.commit();
+      return true;
+    } catch (e) {
+      developer.log('Error batch updating stock', name: 'FirestoreService', error: e);
+      // Note: A more robust solution would check stock levels before attempting to decrement.
+      // This requires a Cloud Function or a more complex transaction. 
+      // For now, we rely on Firestore security rules to prevent negative stock if possible.
+      return false;
+    }
+  }
+
+  Future<String> uploadPaymentProof(String uid, XFile image) async {
+    try {
+      final fileExtension = image.path.split('.').last;
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+      final ref = _storage.ref('payment_proofs/$uid/$fileName');
+      final uploadTask = await ref.putFile(File(image.path));
+      return await uploadTask.ref.getDownloadURL();
+    } catch (e) {
+      developer.log('Error uploading payment proof', name: 'FirestoreService', error: e);
+      return '';
+    }
+  }
+
+  Future<void> createOrder(Map<String, dynamic> orderData) async {
+    await _db.collection('orders').add(orderData);
   }
 }

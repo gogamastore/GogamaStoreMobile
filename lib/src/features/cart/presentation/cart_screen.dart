@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart'; // Import go_router
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
@@ -63,7 +63,6 @@ class CartScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        // FIX: Use context.pop() from go_router
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
@@ -140,7 +139,10 @@ class CartScreen extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 50),
                   ),
-                  onPressed: () { /* TODO: Implement Checkout */ },
+                  onPressed: () {
+                    // Corrected: Use go_router for navigation
+                    context.go('/checkout');
+                  },
                   child: const Text('Checkout'),
                 ),
               )
@@ -230,13 +232,13 @@ class _CartItemCardState extends State<_CartItemCard> {
         padding: const EdgeInsets.all(8.0),
         child: Row(
           children: [
-            Image.network(item.gambar, width: 80, height: 80, fit: BoxFit.cover),
+            Image.network(item.gambar, width: 70, height: 70, fit: BoxFit.cover),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(item.nama, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text(item.nama, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                   Text(NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ').format(item.harga)),
                 ],
               ),
@@ -248,7 +250,7 @@ class _CartItemCardState extends State<_CartItemCard> {
                   onPressed: () => _updateByButton(-1),
                 ),
                 SizedBox(
-                  width: 40,
+                  width: 30,
                   child: TextField(
                     controller: _quantityController,
                     textAlign: TextAlign.center,

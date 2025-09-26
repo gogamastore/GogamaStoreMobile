@@ -6,6 +6,7 @@ import 'package:myapp/src/features/authentication/presentation/splash_screen.dar
 import 'package:myapp/src/features/products/presentation/home_screen.dart';
 
 import '../../features/cart/presentation/cart_screen.dart';
+import '../../features/checkout/presentation/checkout_screen.dart'; // Import CheckoutScreen
 import '../../features/orders/presentation/order_history_screen.dart';
 import '../../features/orders/presentation/order_detail_screen.dart';
 import '../../features/orders/domain/order.dart';
@@ -123,6 +124,11 @@ class AppRouter {
         path: '/cart',
         name: 'cart',
         builder: (context, state) => const CartScreen(),
+      ),
+      GoRoute(
+        path: '/checkout',
+        name: 'checkout',
+        builder: (context, state) => const CheckoutScreen(),
       ),
       GoRoute(
         path: '/order-detail',
