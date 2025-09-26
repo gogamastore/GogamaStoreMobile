@@ -1,84 +1,84 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/data/firestore_service.dart'; // Corrected Path
-import '../../../authentication/data/auth_service.dart';
 import '../../../profile/domain/address.dart';
 import '../../application/checkout_provider.dart';
 
-class AddressSelector extends StatelessWidget {
+class AddressSelector extends StatefulWidget {
   const AddressSelector({super.key});
 
   @override
+  State<AddressSelector> createState() => _AddressSelectorState();
+}
+
+class _AddressSelectorState extends State<AddressSelector> {
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-select the default or first address after the widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final checkoutProvider = context.read<CheckoutProvider>();
+      if (checkoutProvider.selectedAddress == null && checkoutProvider.userAddresses.isNotEmpty) {
+        final addresses = checkoutProvider.userAddresses;
+        final Address addressToSelect = addresses.firstWhere((a) => a.isDefault, orElse: () => addresses.first);
+        checkoutProvider.selectSavedAddress(addressToSelect);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final auth = context.read<AuthService>();
-    final firestore = context.read<FirestoreService>();
     final checkoutProvider = context.watch<CheckoutProvider>();
+    final addresses = checkoutProvider.userAddresses;
 
-    return FutureBuilder<List<Address>>(
-      future: firestore.getUserAddresses(auth.currentUser!.uid),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          // Don't show a big spinner, just a small one.
-          return const Center(child: Padding(
-            padding: EdgeInsets.all(8.0),
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ));
-        }
+    if (addresses.isEmpty) {
+      return const SizedBox.shrink(); // Render nothing if no addresses are available
+    }
 
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const SizedBox.shrink(); // No addresses to show, render nothing.
-        }
+    // Ensure the current selection in the dropdown is a valid object from the list
+    Address? currentSelection;
+    if (checkoutProvider.selectedAddress != null) {
+      final selectedId = checkoutProvider.selectedAddress!.id;
+      currentSelection = addresses.any((a) => a.id == selectedId)
+          ? addresses.firstWhere((a) => a.id == selectedId)
+          : null;
+    }
 
-        final addresses = snapshot.data!;
-
-        // Ensure selectedAddress from provider is a valid object from the list
-        Address? currentSelection;
-        if (checkoutProvider.selectedAddress != null) {
-          currentSelection = addresses.firstWhere((a) => a.id == checkoutProvider.selectedAddress!.id, orElse: () => addresses.first);
-        } else {
-          currentSelection = addresses.firstWhere((a) => a.isDefault, orElse: () => addresses.first);
-          // Auto-select the default or first address
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            context.read<CheckoutProvider>().selectSavedAddress(currentSelection!);
-          });
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Pilih Alamat Tersimpan:', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<Address>(
-              value: currentSelection,
-              hint: const Text('Pilih dari alamat Anda'),
-              isExpanded: true,
-              onChanged: (Address? newValue) {
-                if (newValue != null) {
-                  context.read<CheckoutProvider>().selectSavedAddress(newValue);
-                }
-              },
-              items: addresses.map<DropdownMenuItem<Address>>((Address address) {
-                return DropdownMenuItem<Address>(
-                  value: address,
-                  child: Text('${address.name} - ${address.address}, ${address.city}', overflow: TextOverflow.ellipsis),
-                );
-              }).toList(),
-              decoration: InputDecoration(
-                 border: const OutlineInputBorder(),
-                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                 suffix: checkoutProvider.selectedAddress != null 
-                 ? IconButton(
-                   icon: const Icon(Icons.clear, size: 20),
-                   onPressed: () => context.read<CheckoutProvider>().clearSelectedAddress(),
-                 )
-                 : null,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DropdownButtonFormField<Address>(
+          value: currentSelection,
+          hint: const Text('Pilih dari alamat Anda'),
+          isExpanded: true,
+          onChanged: (Address? newValue) {
+            if (newValue != null) {
+              checkoutProvider.selectSavedAddress(newValue);
+            }
+          },
+          items: addresses.map<DropdownMenuItem<Address>>((Address address) {
+            return DropdownMenuItem<Address>(
+              value: address,
+              child: Text(
+                '${address.name} - ${address.address}, ${address.city}',
+                overflow: TextOverflow.ellipsis,
               ),
-            ),
-             const SizedBox(height: 16),
-          ],
-        );
-      },
+            );
+          }).toList(),
+          decoration: InputDecoration(
+            border: const OutlineInputBorder(),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            suffixIcon: checkoutProvider.selectedAddress != null
+                ? IconButton(
+                    icon: const Icon(Icons.clear, size: 20),
+                    onPressed: () => checkoutProvider.clearSelectedAddress(),
+                  )
+                : null,
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
     );
   }
 }

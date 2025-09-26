@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/data/firestore_service.dart';
@@ -7,7 +8,6 @@ import '../../profile/domain/address.dart';
 import '../domain/bank_account.dart';
 import '../domain/shipping_option.dart';
 
-// A model to hold the delivery form data
 class DeliveryInfo {
   String recipientName;
   String phoneNumber;
@@ -25,7 +25,6 @@ class DeliveryInfo {
     this.specialInstructions = '',
   });
 
-  // A method to check if the essential info is filled
   bool get isCompleted =>
       recipientName.isNotEmpty &&
       phoneNumber.isNotEmpty &&
@@ -39,13 +38,11 @@ class CheckoutProvider with ChangeNotifier {
   final FirestoreService _firestoreService;
   final CartProvider _cartProvider;
 
-  // Loading States
   bool _isInitializing = true;
   bool _isProcessingOrder = false;
 
-  // Data
   List<BankAccount> _bankAccounts = [];
-  List<Address> _userAddresses = []; // Added user addresses list
+  List<Address> _userAddresses = [];
   final List<ShippingOption> _shippingOptions = [
     ShippingOption(
       id: 'courier',
@@ -63,18 +60,16 @@ class CheckoutProvider with ChangeNotifier {
     ),
   ];
 
-  // Selections & Form Data
   ShippingOption? _selectedShipping;
   String _selectedPaymentMethod = 'bank_transfer';
   Address? _selectedAddress;
   final DeliveryInfo _deliveryInfo = DeliveryInfo();
   XFile? _paymentProofImage;
 
-  // Getters
   bool get isInitializing => _isInitializing;
   bool get isProcessingOrder => _isProcessingOrder;
   List<BankAccount> get bankAccounts => _bankAccounts;
-  List<Address> get userAddresses => _userAddresses; // Added getter for user addresses
+  List<Address> get userAddresses => _userAddresses;
   List<ShippingOption> get shippingOptions => _shippingOptions;
   ShippingOption? get selectedShipping => _selectedShipping;
   String get selectedPaymentMethod => _selectedPaymentMethod;
@@ -95,31 +90,53 @@ class CheckoutProvider with ChangeNotifier {
         _cartProvider = cartProvider;
 
   Future<void> initialize() async {
+    developer.log('Initializing CheckoutProvider...', name: 'CheckoutProvider');
     _isInitializing = true;
     notifyListeners();
     _selectedShipping = _shippingOptions.first;
     await _fetchBankAccounts();
-    await _fetchUserAddresses(); // Fetch user addresses
+    await _fetchUserAddresses(); // This will now auto-select the default address
     _isInitializing = false;
+    developer.log('Initialization complete. Found ${_userAddresses.length} addresses.', name: 'CheckoutProvider');
     notifyListeners();
   }
 
   Future<void> _fetchBankAccounts() async {
     try {
-      _bankAccounts = await _firestoreService.getActiveBankAccounts();
+      _bankAccounts = await _firestoreService.getBankAccounts();
     } catch (e) {
       _bankAccounts = [];
+      developer.log('Error fetching bank accounts', name: 'CheckoutProvider', error: e);
     }
   }
 
-  Future<void> _fetchUserAddresses() async { // Added method to fetch user addresses
+  Future<void> _fetchUserAddresses() async {
     final user = _authService.currentUser;
     if (user != null) {
+      developer.log('Fetching addresses for user: ${user.uid}', name: 'CheckoutProvider');
       try {
         _userAddresses = await _firestoreService.getUserAddresses(user.uid);
-      } catch (e) {
+        developer.log('Successfully fetched ${_userAddresses.length} addresses.', name: 'CheckoutProvider');
+        
+        Address? defaultAddress;
+        try {
+          defaultAddress = _userAddresses.firstWhere((addr) => addr.isDefault);
+        } catch (e) {
+          if (_userAddresses.isNotEmpty) {
+            defaultAddress = _userAddresses.first;
+          }
+        }
+
+        if (defaultAddress != null) {
+          selectSavedAddress(defaultAddress);
+        }
+      } catch (e, s) {
         _userAddresses = [];
+        developer.log('Error fetching user addresses', name: 'CheckoutProvider', error: e, stackTrace: s);
       }
+    } else {
+       developer.log('Cannot fetch addresses: User is not logged in.', name: 'CheckoutProvider');
+       _userAddresses = [];
     }
   }
 
@@ -156,6 +173,11 @@ class CheckoutProvider with ChangeNotifier {
 
   void clearSelectedAddress() {
     _selectedAddress = null;
+    _deliveryInfo.recipientName = '';
+    _deliveryInfo.phoneNumber = '';
+    _deliveryInfo.address = '';
+    _deliveryInfo.city = '';
+    _deliveryInfo.postalCode = '';
     notifyListeners();
   }
 
@@ -173,6 +195,8 @@ class CheckoutProvider with ChangeNotifier {
     _deliveryInfo.city = city ?? _deliveryInfo.city;
     _deliveryInfo.postalCode = postalCode ?? _deliveryInfo.postalCode;
     _deliveryInfo.specialInstructions = specialInstructions ?? _deliveryInfo.specialInstructions;
+    // When manual update occurs, deselect the saved address
+    _selectedAddress = null;
     notifyListeners();
   }
 
@@ -185,7 +209,7 @@ class CheckoutProvider with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      // empty
+      developer.log('Error picking payment proof', name: 'CheckoutProvider', error: e);
     }
   }
 
@@ -203,29 +227,35 @@ class CheckoutProvider with ChangeNotifier {
     _isProcessingOrder = true;
     notifyListeners();
 
-    try {
-      final productsForStockUpdate = _cartProvider.items
-          .map((item) => {'productId': item.productId, 'quantity': item.quantity})
-          .toList();
+    final String newOrderId = _firestoreService.getNewOrderId();
 
-      final stockUpdateResult = await _firestoreService.batchUpdateStock(productsForStockUpdate);
-      if (!stockUpdateResult) {
-        throw Exception('Stok produk tidak mencukupi untuk pesanan ini. Silakan periksa kembali keranjang Anda.');
-      }
+    try {
+      final now = DateTime.now();
+      final isoTimestamp = now.toUtc().toIso8601String();
 
       String paymentProofUrl = '';
       if (_paymentProofImage != null) {
         paymentProofUrl = await _firestoreService.uploadPaymentProof(
-            user.uid, _paymentProofImage!);
+            user.uid, newOrderId, _paymentProofImage!);
       }
 
       final orderData = {
+        // Timestamps & Dates
+        'created_at': isoTimestamp,
+        'updated_at': isoTimestamp,
+        'date': now,
+        'stockUpdateTimestamp': isoTimestamp,
+
+        // Customer Info
+        'customer': _deliveryInfo.recipientName,
         'customerId': user.uid,
         'customerDetails': {
           'name': _deliveryInfo.recipientName,
           'address': '${_deliveryInfo.address}, ${_deliveryInfo.city}, ${_deliveryInfo.postalCode}',
           'whatsapp': _deliveryInfo.phoneNumber,
         },
+
+        // Product Info
         'products': _cartProvider.items.map((item) => {
           'productId': item.productId,
           'name': item.nama,
@@ -233,25 +263,41 @@ class CheckoutProvider with ChangeNotifier {
           'quantity': item.quantity,
           'image': item.gambar,
         }).toList(),
-        'subtotal': subtotal,
-        'shippingFee': shippingCost,
-        'total': grandTotal,
-        'shippingMethod': _selectedShipping!.name,
+        'productIds': _cartProvider.items.map((item) => item.productId).toList(),
+
+        // Payment Info
         'paymentMethod': _selectedPaymentMethod,
+        'paymentStatus': _paymentProofImage != null ? 'Paid' : 'Unpaid',
         'paymentProofUrl': paymentProofUrl,
-        'paymentStatus': 'Unpaid',
+        'paymentProofFileName': _paymentProofImage?.name ?? '',
+        'paymentProofId': '', // Left blank as per structure
+        'paymentProofUploaded': _paymentProofImage != null,
+
+        // Shipping Info
+        'shippingMethod': _selectedShipping!.name,
+        'shippingFee': shippingCost,
+
+        // Totals
+        'subtotal': subtotal,
+        'total': grandTotal,
+
+        // Status
         'status': 'Pending',
-        'date': DateTime.now(),
-        'stockUpdated': true, 
+        'stockUpdated': true,
       };
 
-      await _firestoreService.createOrder(orderData);
+      final itemsToUpdate = _cartProvider.items
+          .map((item) => {'productId': item.productId, 'quantity': item.quantity})
+          .toList();
 
-      await _cartProvider.fetchCart();
+      await _firestoreService.placeOrderInTransaction(newOrderId, orderData, itemsToUpdate);
+
+      await _cartProvider.clearCart();
 
       return null; // Success
 
     } catch (e) {
+      developer.log('Error processing order', name: 'CheckoutProvider', error: e);
       return e.toString();
     } finally {
       _isProcessingOrder = false;

@@ -140,8 +140,8 @@ class CartScreen extends StatelessWidget {
                     minimumSize: const Size(double.infinity, 50),
                   ),
                   onPressed: () {
-                    // Corrected: Use go_router for navigation
-                    context.go('/checkout');
+                    // Corrected: Use push to keep the cart page in the stack
+                    context.push('/checkout');
                   },
                   child: const Text('Checkout'),
                 ),
@@ -232,8 +232,8 @@ class _CartItemCardState extends State<_CartItemCard> {
         padding: const EdgeInsets.all(8.0),
         child: Row(
           children: [
-            Image.network(item.gambar, width: 70, height: 70, fit: BoxFit.cover),
-            const SizedBox(width: 16),
+            Image.network(item.gambar, width: 60, height: 60, fit: BoxFit.cover),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

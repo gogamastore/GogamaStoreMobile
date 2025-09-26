@@ -6,12 +6,17 @@ import 'package:myapp/src/features/authentication/presentation/splash_screen.dar
 import 'package:myapp/src/features/products/presentation/home_screen.dart';
 
 import '../../features/cart/presentation/cart_screen.dart';
-import '../../features/checkout/presentation/checkout_screen.dart'; // Import CheckoutScreen
+import '../../features/checkout/presentation/checkout_screen.dart'; 
 import '../../features/orders/presentation/order_history_screen.dart';
 import '../../features/orders/presentation/order_detail_screen.dart';
 import '../../features/orders/domain/order.dart';
+import '../../features/profile/domain/address.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/profile/presentation/edit_profile_screen.dart';
+import '../../features/profile/presentation/address_screen.dart';
+import '../../features/profile/presentation/add_edit_address_screen.dart';
+import '../../features/profile/presentation/contact_screen.dart';
+import '../../features/profile/presentation/help_center_screen.dart';
 import '../../features/products/domain/product.dart';
 import '../../features/products/presentation/catalog_screen.dart';
 import '../../features/products/presentation/product_detail_screen.dart';
@@ -29,31 +34,25 @@ class AppRouter {
       final authStatus = authService.authStatus;
       final bool loggedIn = authStatus == AuthStatus.authenticated;
       
-      // Define public routes that do not require authentication.
       final publicRoutes = ['/login', '/splash'];
 
       final location = state.matchedLocation;
       final isPublicRoute = publicRoutes.contains(location);
 
-      // If authentication status is still loading, show splash screen.
       if (authStatus == AuthStatus.unknown) {
         return '/splash';
       }
 
-      // If the user is logged in...
       if (loggedIn) {
-        // ...and tries to access a public-only route like login, redirect to home.
         if (isPublicRoute) {
           return '/';
         }
-      } else { // If the user is not logged in...
-        // ...and tries to access a protected route, redirect to login.
+      } else {
         if (!isPublicRoute) {
           return '/login';
         }
       }
 
-      // No redirection needed.
       return null;
     },
     routes: [
@@ -100,6 +99,36 @@ class AppRouter {
                     path: 'orders',
                     name: 'orderHistory',
                     builder: (context, state) => const OrderHistoryScreen(),
+                  ),
+                  GoRoute(
+                    path: 'address',
+                    name: 'address',
+                    builder: (context, state) => const AddressScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'add',
+                        name: 'addAddress',
+                        builder: (context, state) => const AddEditAddressScreen(),
+                      ),
+                      GoRoute(
+                        path: 'edit',
+                        name: 'editAddress',
+                        builder: (context, state) {
+                          final address = state.extra as Address?;
+                          return AddEditAddressScreen(address: address);
+                        },
+                      ),
+                    ]
+                  ),
+                  GoRoute(
+                    path: 'contact',
+                    name: 'contact',
+                    builder: (context, state) => const ContactScreen(),
+                  ),
+                  GoRoute(
+                    path: 'help',
+                    name: 'help',
+                    builder: (context, state) => const HelpCenterScreen(),
                   ),
                 ],
               ),

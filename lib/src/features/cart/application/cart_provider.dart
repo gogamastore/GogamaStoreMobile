@@ -112,6 +112,17 @@ class CartProvider with ChangeNotifier {
       notifyListeners();
     }
   }
+  
+  Future<void> clearCart() async {
+    final user = _authService.currentUser;
+    if (user == null) return; 
+
+    // 1. Clear backend data
+    await _firestoreService.clearCart(user.uid);
+
+    // 2. Clear local data
+    _clearCartData();
+  }
 
   void _calculateTotal() {
     _total = _items.fold(0.0, (sum, item) => sum + (item.harga * item.quantity));

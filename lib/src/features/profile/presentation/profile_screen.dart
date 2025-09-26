@@ -141,9 +141,9 @@ class ProfileScreen extends StatelessWidget {
         children: [
           _buildMenuListItem(context, icon: Icons.person_outline, title: 'Profil Saya', subtitle: 'Kelola profil dan informasi pribadi', color: Colors.blue, onTap: () => context.go('/profile/edit')),
           _buildMenuListItem(context, icon: Icons.history, title: 'Riwayat Pesanan', subtitle: 'Lihat status dan riwayat pemesanan', color: Colors.orange, onTap: () => context.go('/profile/orders')),
-          _buildMenuListItem(context, icon: Icons.location_on_outlined, title: 'Alamat Pengiriman', subtitle: 'Kelola alamat untuk pengiriman', color: Colors.green, onTap: () {}),
-          _buildMenuListItem(context, icon: Icons.support_agent, title: 'Contact', subtitle: 'Hubungi kami dan akun official', color: Colors.lightGreen, onTap: () {}),
-          _buildMenuListItem(context, icon: Icons.help_outline, title: 'Pusat Bantuan', subtitle: 'FAQ dan dukungan pelanggan', color: Colors.purple, onTap: () {}),
+          _buildMenuListItem(context, icon: Icons.location_on_outlined, title: 'Alamat Pengiriman', subtitle: 'Kelola alamat untuk pengiriman', color: Colors.green, onTap: () => context.go('/profile/address')),
+          _buildMenuListItem(context, icon: Icons.support_agent, title: 'Contact', subtitle: 'Hubungi kami dan akun official', color: Colors.lightGreen, onTap: () => context.go('/profile/contact')),
+          _buildMenuListItem(context, icon: Icons.help_outline, title: 'Pusat Bantuan', subtitle: 'FAQ dan dukungan pelanggan', color: Colors.purple, onTap: () => context.go('/profile/help')),
           _buildMenuListItem(context, icon: Icons.info_outline, title: 'Tentang Aplikasi', subtitle: 'Informasi aplikasi dan versi', color: Colors.grey, onTap: () {}, hideDivider: true),
         ],
       ),

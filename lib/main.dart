@@ -8,6 +8,7 @@ import 'src/features/cart/application/cart_provider.dart';
 import 'src/features/authentication/data/auth_service.dart';
 import 'src/core/data/firestore_service.dart';
 import 'src/core/theme/theme_provider.dart';
+import 'src/features/profile/application/address_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,9 +47,6 @@ class MyApp extends StatelessWidget {
         // Provides the service for database interactions
         Provider<FirestoreService>(create: (_) => FirestoreService()),
 
-        // ** CORRECTED PROVIDER **
-        // Creates CartProvider and makes it depend on AuthService.
-        // Now, CartProvider will react to login/logout events itself.
         ChangeNotifierProxyProvider<AuthService, CartProvider>(
           create: (context) => CartProvider(
             context.read<FirestoreService>(),
@@ -56,6 +54,15 @@ class MyApp extends StatelessWidget {
           ),
           update: (context, auth, previousCart) => 
               previousCart ?? CartProvider(context.read<FirestoreService>(), auth),
+        ),
+
+        ChangeNotifierProxyProvider<AuthService, AddressProvider>(
+          create: (context) => AddressProvider(
+            firestoreService: context.read<FirestoreService>(),
+            authService: context.read<AuthService>(),
+          ),
+          update: (context, auth, previousProvider) =>
+              previousProvider ?? AddressProvider(firestoreService: context.read<FirestoreService>(), authService: auth),
         ),
       ],
       child: MaterialApp.router(

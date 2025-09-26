@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../application/checkout_provider.dart';
 import '../../cart/application/cart_provider.dart';
-import '../../authentication/data/auth_service.dart'; // Import services
+import '../../authentication/data/auth_service.dart';
 import '../../../core/data/firestore_service.dart';
 import 'widgets/delivery_info_widget.dart';
 import 'widgets/address_selector.dart';
@@ -18,11 +18,10 @@ class CheckoutScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => CheckoutProvider(
-        // Pass the required services using context.read
         authService: context.read<AuthService>(),
         firestoreService: context.read<FirestoreService>(),
         cartProvider: context.read<CartProvider>(),
-      )..initialize(), // Initialize the provider right after creation
+      )..initialize(),
       child: Consumer<CheckoutProvider>(
         builder: (context, checkoutProvider, child) {
           if (checkoutProvider.isInitializing) {
@@ -32,32 +31,36 @@ class CheckoutScreen extends StatelessWidget {
             );
           }
 
-          return Scaffold(
-            appBar: AppBar(
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => context.pop(),
-              ),
-              title: const Text('Checkout'),
-            ),
-            body: SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildAddressSelectorSection(context), // Added Address Selector
-                  const SizedBox(height: 24),
-                  _buildOrderSummary(context),
-                  const SizedBox(height: 24),
-                  _buildShippingOptions(context),
-                  const SizedBox(height: 24),
-                  _buildDeliveryInfoSection(context),
-                  const SizedBox(height: 24),
-                  _buildPaymentMethodSection(context),
-                ],
-              ),
-            ),
-            bottomNavigationBar: _buildCheckoutSummary(context),
+          return Builder( // Wrap with Builder
+            builder: (context) {
+              return Scaffold(
+                appBar: AppBar(
+                  leading: IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () => context.pop(),
+                  ),
+                  title: const Text('Checkout'),
+                ),
+                body: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildAddressSelectorSection(context),
+                      const SizedBox(height: 24),
+                      _buildOrderSummary(context),
+                      const SizedBox(height: 24),
+                      _buildShippingOptions(context),
+                      const SizedBox(height: 24),
+                      _buildDeliveryInfoSection(context),
+                      const SizedBox(height: 24),
+                      _buildPaymentMethodSection(context),
+                    ],
+                  ),
+                ),
+                bottomNavigationBar: _buildCheckoutSummary(context),
+              );
+            },
           );
         },
       ),
@@ -73,11 +76,11 @@ class CheckoutScreen extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildAddressSelectorSection(BuildContext context) {
     final checkoutProvider = context.watch<CheckoutProvider>();
     if (checkoutProvider.userAddresses.isEmpty) {
-      return const SizedBox.shrink(); // Don't show if no addresses are saved
+      return const SizedBox.shrink();
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -89,8 +92,8 @@ class CheckoutScreen extends StatelessWidget {
   }
 
   Widget _buildOrderSummary(BuildContext context) {
-    final cart = context.watch<CartProvider>(); // Watch for changes to rebuild summary
-    
+    final cart = context.watch<CartProvider>();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -113,7 +116,7 @@ class CheckoutScreen extends StatelessWidget {
     );
   }
 
-   Widget _buildShippingOptions(BuildContext context) {
+  Widget _buildShippingOptions(BuildContext context) {
     final checkoutProvider = context.watch<CheckoutProvider>();
 
     return Column(
@@ -142,10 +145,13 @@ class CheckoutScreen extends StatelessWidget {
   }
 
   Widget _buildDeliveryInfoSection(BuildContext context) {
+     final checkoutProvider = context.watch<CheckoutProvider>();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Atau Isi Alamat Pengiriman Baru'),
+        _buildSectionTitle(checkoutProvider.userAddresses.isEmpty 
+          ? 'Isi Alamat Pengiriman' 
+          : 'Atau Isi Alamat Pengiriman Baru'),
         const DeliveryInfoWidget(),
       ],
     );
@@ -165,7 +171,7 @@ class CheckoutScreen extends StatelessWidget {
     final checkoutProvider = context.watch<CheckoutProvider>();
     final total = checkoutProvider.grandTotal;
 
-    return Builder( // Use Builder to get a context that is a descendant of the Scaffold
+    return Builder(
       builder: (context) {
         return Container(
           padding: const EdgeInsets.all(16.0),
@@ -173,7 +179,7 @@ class CheckoutScreen extends StatelessWidget {
             color: Theme.of(context).cardColor,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withAlpha(26), // Corrected: Replaced withOpacity
+                color: Colors.black.withAlpha(26),
                 blurRadius: 10,
                 offset: const Offset(0, -5),
               ),
@@ -190,7 +196,7 @@ class CheckoutScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-               Row(
+              Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text('Pengiriman:', style: TextStyle(fontSize: 16)),
@@ -210,19 +216,21 @@ class CheckoutScreen extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50),
                 ),
-                onPressed: checkoutProvider.isProcessingOrder ? null : () async {
-                  final error = await context.read<CheckoutProvider>().processOrder();
-                  if (context.mounted) {
-                    if (error != null) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pesanan berhasil dibuat!')));
-                      Navigator.of(context).popUntil((route) => route.isFirst);
-                    }
-                  }
-                },
-                child: checkoutProvider.isProcessingOrder 
-                    ? const CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.white)) 
+                onPressed: checkoutProvider.isProcessingOrder
+                    ? null
+                    : () async {
+                        final error = await context.read<CheckoutProvider>().processOrder();
+                        if (context.mounted) {
+                          if (error != null) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pesanan berhasil dibuat!')));
+                            context.go('/');
+                          }
+                        }
+                      },
+                child: checkoutProvider.isProcessingOrder
+                    ? const CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.white))
                     : const Text('Buat Pesanan'),
               ),
             ],

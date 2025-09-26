@@ -180,42 +180,19 @@ class FirestoreService {
 
   // --- CHECKOUT & ORDER METHODS ---
 
-  Future<List<BankAccount>> getActiveBankAccounts() async {
-    final snapshot = await _db.collection('bank_accounts').where('isActive', isEqualTo: true).get();
+  String getNewOrderId() {
+    return _db.collection('orders').doc().id;
+  }
+
+  Future<List<BankAccount>> getBankAccounts() async {
+    final snapshot = await _db.collection('bank_accounts').get();
     return snapshot.docs.map((doc) => BankAccount.fromFirestore(doc)).toList();
   }
 
-  Future<List<Address>> getUserAddresses(String uid) async {
-     final snapshot = await _db.collection('user').doc(uid).collection('address').orderBy('isDefault', descending: true).get();
-     return snapshot.docs.map((doc) => Address.fromFirestore(doc)).toList(); // Corrected call
-  }
-
-  Future<bool> batchUpdateStock(List<Map<String, dynamic>> products) async {
-    final batch = _db.batch();
-
-    for (final prod in products) {
-      final productId = prod['productId'] as String;
-      final quantityToReduce = prod['quantity'] as int;
-      final productRef = _db.collection('products').doc(productId);
-      batch.update(productRef, {'stock': FieldValue.increment(-quantityToReduce)});
-    }
-
-    try {
-      await batch.commit();
-      return true;
-    } catch (e) {
-      developer.log('Error batch updating stock', name: 'FirestoreService', error: e);
-      // Note: A more robust solution would check stock levels before attempting to decrement.
-      // This requires a Cloud Function or a more complex transaction. 
-      // For now, we rely on Firestore security rules to prevent negative stock if possible.
-      return false;
-    }
-  }
-
-  Future<String> uploadPaymentProof(String uid, XFile image) async {
+  Future<String> uploadPaymentProof(String uid, String orderId, XFile image) async {
     try {
       final fileExtension = image.path.split('.').last;
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+      final fileName = 'payment_proof_${orderId}_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
       final ref = _storage.ref('payment_proofs/$uid/$fileName');
       final uploadTask = await ref.putFile(File(image.path));
       return await uploadTask.ref.getDownloadURL();
@@ -225,7 +202,80 @@ class FirestoreService {
     }
   }
 
-  Future<void> createOrder(Map<String, dynamic> orderData) async {
-    await _db.collection('orders').add(orderData);
+  Future<void> placeOrderInTransaction(
+      String orderId, 
+      Map<String, dynamic> orderData,
+      List<Map<String, dynamic>> itemsToUpdate
+  ) async {
+    return _db.runTransaction((transaction) async {
+      // 1. Create the order document with a specific ID
+      final orderRef = _db.collection('orders').doc(orderId);
+      transaction.set(orderRef, orderData);
+
+      // 2. Update stock for each product
+      for (final item in itemsToUpdate) {
+        final productRef = _db.collection('products').doc(item['productId']);
+        final int quantityOrdered = item['quantity'];
+        transaction.update(productRef, {'stock': FieldValue.increment(-quantityOrdered)});
+      }
+    });
+  }
+
+  // --- ADDRESS METHODS ---
+
+  CollectionReference _userAddressesRef(String uid) => _db.collection('user').doc(uid).collection('addresses');
+
+  Stream<List<Address>> streamUserAddresses(String uid) {
+    return _userAddressesRef(uid)
+        .orderBy('isDefault', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => Address.fromFirestore(doc)).toList());
+  }
+
+  Future<List<Address>> getUserAddresses(String uid) async {
+    final snapshot = await _userAddressesRef(uid).orderBy('isDefault', descending: true).get();
+    return snapshot.docs.map((doc) => Address.fromFirestore(doc)).toList();
+  }
+
+  Future<void> addAddress(String uid, Address address) async {
+    final WriteBatch batch = _db.batch();
+    
+    if (address.isDefault) {
+      await _removeCurrentDefault(uid, batch);
+    }
+
+    final newAddressRef = _userAddressesRef(uid).doc();
+    batch.set(newAddressRef, address.toMap());
+
+    return batch.commit();
+  }
+
+  Future<void> updateAddress(String uid, Address address) async {
+    final WriteBatch batch = _db.batch();
+
+    if (address.isDefault) {
+      await _removeCurrentDefault(uid, batch, currentAddressId: address.id);
+    }
+
+    final addressRef = _userAddressesRef(uid).doc(address.id);
+    var data = address.toMap();
+    data['updated_at'] = FieldValue.serverTimestamp(); // Ensure updated_at is always updated
+    batch.update(addressRef, data);
+
+    return batch.commit();
+  }
+
+  Future<void> deleteAddress(String uid, String addressId) {
+    return _userAddressesRef(uid).doc(addressId).delete();
+  }
+
+  Future<void> _removeCurrentDefault(String uid, WriteBatch batch, {String? currentAddressId}) async {
+    final querySnapshot = await _userAddressesRef(uid).where('isDefault', isEqualTo: true).get();
+    
+    for (final doc in querySnapshot.docs) {
+      if (doc.id != currentAddressId) {
+        batch.update(doc.reference, {'isDefault': false});
+      }
+    }
   }
 }

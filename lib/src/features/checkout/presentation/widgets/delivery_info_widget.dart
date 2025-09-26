@@ -13,7 +13,6 @@ class DeliveryInfoWidget extends StatefulWidget {
 class _DeliveryInfoWidgetState extends State<DeliveryInfoWidget> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controllers to manage form fields
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
   late final TextEditingController _addressController;
@@ -21,11 +20,15 @@ class _DeliveryInfoWidgetState extends State<DeliveryInfoWidget> {
   late final TextEditingController _postalCodeController;
   late final TextEditingController _instructionsController;
 
+  // Store a reference to the provider
+  late final CheckoutProvider _checkoutProvider;
+
   @override
   void initState() {
     super.initState();
-    final checkoutProvider = context.read<CheckoutProvider>();
-    final deliveryInfo = checkoutProvider.deliveryInfo;
+    // Get the provider reference here, where it's safe
+    _checkoutProvider = context.read<CheckoutProvider>();
+    final deliveryInfo = _checkoutProvider.deliveryInfo;
 
     _nameController = TextEditingController(text: deliveryInfo.recipientName);
     _phoneController = TextEditingController(text: deliveryInfo.phoneNumber);
@@ -34,14 +37,15 @@ class _DeliveryInfoWidgetState extends State<DeliveryInfoWidget> {
     _postalCodeController = TextEditingController(text: deliveryInfo.postalCode);
     _instructionsController = TextEditingController(text: deliveryInfo.specialInstructions);
 
-    // Listen for provider updates to update form fields
-    checkoutProvider.addListener(_updateFormFields);
+    // Use the stored reference to add the listener
+    _checkoutProvider.addListener(_updateFormFieldsFromProvider);
   }
 
   @override
   void dispose() {
-    context.read<CheckoutProvider>().removeListener(_updateFormFields);
-
+    // Use the stored reference to safely remove the listener
+    _checkoutProvider.removeListener(_updateFormFieldsFromProvider);
+    
     _nameController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
@@ -51,46 +55,46 @@ class _DeliveryInfoWidgetState extends State<DeliveryInfoWidget> {
     super.dispose();
   }
 
-  void _updateFormFields() {
-    final deliveryInfo = context.read<CheckoutProvider>().deliveryInfo;
+  void _updateFormFieldsFromProvider() {
+    final deliveryInfo = _checkoutProvider.deliveryInfo;
+    
     if (_nameController.text != deliveryInfo.recipientName) {
       _nameController.text = deliveryInfo.recipientName;
     }
     if (_phoneController.text != deliveryInfo.phoneNumber) {
       _phoneController.text = deliveryInfo.phoneNumber;
     }
-     if (_addressController.text != deliveryInfo.address) {
+    if (_addressController.text != deliveryInfo.address) {
       _addressController.text = deliveryInfo.address;
     }
-     if (_cityController.text != deliveryInfo.city) {
+    if (_cityController.text != deliveryInfo.city) {
       _cityController.text = deliveryInfo.city;
     }
-     if (_postalCodeController.text != deliveryInfo.postalCode) {
+    if (_postalCodeController.text != deliveryInfo.postalCode) {
       _postalCodeController.text = deliveryInfo.postalCode;
     }
   }
 
-  void _onChanged() {
-    context.read<CheckoutProvider>().updateDeliveryInfo(
-          recipientName: _nameController.text,
-          phoneNumber: _phoneController.text,
-          address: _addressController.text,
-          city: _cityController.text,
-          postalCode: _postalCodeController.text,
-          specialInstructions: _instructionsController.text,
-        );
+  void _onFormChanged() {
+    _checkoutProvider.updateDeliveryInfo(
+      recipientName: _nameController.text,
+      phoneNumber: _phoneController.text,
+      address: _addressController.text,
+      city: _cityController.text,
+      postalCode: _postalCodeController.text,
+      specialInstructions: _instructionsController.text,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Form(
       key: _formKey,
-      onChanged: _onChanged, // auto-update provider on any change
+      onChanged: _onFormChanged, 
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-           // We'll add the Address Selector here later
-           TextFormField(
+          TextFormField(
             controller: _nameController,
             decoration: const InputDecoration(labelText: 'Nama Penerima'),
             validator: (value) => (value == null || value.isEmpty) ? 'Wajib diisi' : null,
@@ -141,4 +145,3 @@ class _DeliveryInfoWidgetState extends State<DeliveryInfoWidget> {
     );
   }
 }
-
