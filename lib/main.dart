@@ -15,17 +15,23 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
-  // Create instances of the services
-  final authService = AuthService();
 
-  // Create the router and run the app
+  final authService = AuthService();
   final appRouter = AppRouter(authService);
-  runApp(MyApp(appRouter: appRouter, authService: authService));
+
+  // The router's SplashScreen handles the initial auth state.
+  runApp(MyApp(
+    appRouter: appRouter,
+    authService: authService,
+  ));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key, required this.appRouter, required this.authService});
+  const MyApp({
+    super.key,
+    required this.appRouter,
+    required this.authService,
+  });
 
   final AppRouter appRouter;
   final AuthService authService;
@@ -34,17 +40,22 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // Provides the authentication state throughout the app
         ChangeNotifierProvider<AuthService>.value(value: authService),
+        
+        // Provides the service for database interactions
         Provider<FirestoreService>(create: (_) => FirestoreService()),
+
+        // ** CORRECTED PROVIDER **
+        // Creates CartProvider and makes it depend on AuthService.
+        // Now, CartProvider will react to login/logout events itself.
         ChangeNotifierProxyProvider<AuthService, CartProvider>(
           create: (context) => CartProvider(
             context.read<FirestoreService>(),
-            context.read<AuthService>().currentUser?.uid,
+            context.read<AuthService>(),
           ),
-          update: (context, auth, previous) => CartProvider(
-            context.read<FirestoreService>(),
-            auth.currentUser?.uid,
-          ),
+          update: (context, auth, previousCart) => 
+              previousCart ?? CartProvider(context.read<FirestoreService>(), auth),
         ),
       ],
       child: MaterialApp.router(

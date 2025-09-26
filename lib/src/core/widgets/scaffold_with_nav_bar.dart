@@ -16,7 +16,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.shopping_cart),
-            onPressed: () => context.go('/cart'),
+            onPressed: () => context.push('/cart'), // FIX: Changed go to push
           ),
         ],
       ),

@@ -18,14 +18,20 @@ class AuthService with ChangeNotifier {
   AppUser? _appUser;
   AuthStatus _authStatus = AuthStatus.unknown;
 
+  // --- FIX: Add a completer to signal when the initial auth state is ready ---
+  final Completer<void> _readyCompleter = Completer<void>();
+
   late StreamSubscription<User?> _authStateChangesSubscription;
 
   AuthService() {
-    // We listen to auth state changes and update our own status
+    // Listen to auth state changes and update our own status
     _authStateChangesSubscription = _firebaseAuth.authStateChanges().listen(_onAuthStateChanged);
-    // Check the initial user state
+    // Check the initial user state immediately
     _onAuthStateChanged(_firebaseAuth.currentUser);
   }
+
+  // --- FIX: Public Future to await the initial auth state ---
+  Future<void> get isReady => _readyCompleter.future;
 
   AppUser? get currentUser => _appUser;
   AuthStatus get authStatus => _authStatus;
@@ -61,6 +67,12 @@ class AuthService with ChangeNotifier {
         _authStatus = AuthStatus.unauthenticated; // Treat errors as unauthenticated
       }
     }
+    
+    // --- FIX: Complete the future only once when the first auth state is known ---
+    if (!_readyCompleter.isCompleted) {
+      _readyCompleter.complete();
+    }
+
     notifyListeners();
   }
 

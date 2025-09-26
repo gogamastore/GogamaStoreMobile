@@ -1,107 +1,147 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
-
 import '../../../core/data/firestore_service.dart';
+import '../../authentication/data/auth_service.dart';
 import '../../products/domain/product.dart';
 import '../domain/cart_item.dart';
+import '../presentation/cart_screen.dart'; // Using CartItemUI
 
 class CartProvider with ChangeNotifier {
   final FirestoreService _firestoreService;
-  final String? _uid;
+  final AuthService _authService;
 
-  Map<String, CartItem> _items = {};
-
-  CartProvider(this._firestoreService, this._uid) {
-    if (_uid != null) {
-      _firestoreService.getCartStream(_uid).listen((items) {
-        _items = {for (var item in items) item.product.id: item};
-        notifyListeners();
-      });
-    }
+  CartProvider(this._firestoreService, this._authService) {
+    _authService.addListener(_onAuthChanged);
+    _onAuthChanged();
   }
 
-  Map<String, CartItem> get items => {..._items};
+  bool _isLoading = false;
+  List<CartItemUI> _items = [];
+  double _total = 0.0;
 
-  int get itemCount => _items.values.fold(0, (sum, item) => sum + item.quantity);
+  bool get isLoading => _isLoading;
+  List<CartItemUI> get items => _items;
+  double get total => _total;
 
-  double get totalAmount {
-    var total = 0.0;
-    _items.forEach((key, cartItem) {
-      total += cartItem.product.price * cartItem.quantity;
-    });
-    return total;
-  }
-
-  // --- FIX: Modified addItem to accept an optional quantity ---
-  void addItem(Product product, {int quantity = 1}) {
-    if (_uid == null || quantity <= 0) return;
-
-    if (_items.containsKey(product.id)) {
-      // If the item already exists, increase its quantity
-      _items.update(
-        product.id,
-        (existingCartItem) {
-          final newQuantity = existingCartItem.quantity + quantity;
-          // Clamp the quantity to the available stock
-          final validatedQuantity = newQuantity > product.stock ? product.stock : newQuantity;
-          return CartItem(
-            product: existingCartItem.product,
-            quantity: validatedQuantity,
-          );
-        },
-      );
+  void _onAuthChanged() {
+    if (_authService.currentUser != null) {
+      fetchCart();
     } else {
-      // If the item is new, add it to the cart
-      // Clamp the quantity to the available stock
-      final validatedQuantity = quantity > product.stock ? product.stock : quantity;
-      _items.putIfAbsent(
-        product.id,
-        () => CartItem(product: product, quantity: validatedQuantity),
-      );
+      _clearCartData();
     }
-
-    _firestoreService.updateCart(_uid, _items.values.toList());
-    notifyListeners();
   }
 
-  void removeItem(String productId) {
-    if (_uid == null) return;
+  Future<void> fetchCart() async {
+    final user = _authService.currentUser;
+    if (user == null) return;
 
-    _items.remove(productId);
-
-    _firestoreService.updateCart(_uid, _items.values.toList());
+    _isLoading = true;
     notifyListeners();
-  }
 
-  void updateItemQuantity(String productId, int quantity) {
-    if (_uid == null) return;
-
-    if (_items.containsKey(productId)) {
-      if (quantity > 0) {
-        _items.update(
-          productId,
-          (existingCartItem) {
-            // Clamp the quantity to the available stock
-            final validatedQuantity = quantity > existingCartItem.product.stock ? existingCartItem.product.stock : quantity;
-            return CartItem(
-              product: existingCartItem.product,
-              quantity: validatedQuantity,
-            );
-          },
-        );
-      } else {
-        _items.remove(productId);
-      }
-      _firestoreService.updateCart(_uid, _items.values.toList());
+    try {
+      final cartData = await _firestoreService.getUserCart(user.uid);
+      _items = (cartData['items'] as List)
+          .map((itemData) => CartItemUI.fromMap(itemData))
+          .toList();
+      _calculateTotal(); // Use a separate method for calculation
+    } catch (e) {
+      _items = [];
+      _total = 0.0;
+    } finally {
+      _isLoading = false;
       notifyListeners();
     }
   }
 
-  void clearCart() {
-    if (_uid == null) return;
+  Future<void> addItemToCart(Product product, int quantity) async {
+    final user = _authService.currentUser;
+    if (user == null) return;
 
-    _items = {};
+    final cartItem = CartItem(product: product, quantity: quantity);
+    await _firestoreService.setCartItem(user.uid, cartItem);
+    await fetchCart();
+  }
 
-    _firestoreService.updateCart(_uid, []);
+  // Optimistic UI update for quantity
+  Future<void> updateQuantity(String productId, int newQuantity) async {
+    final user = _authService.currentUser;
+    if (user == null) return;
+
+    final itemIndex = _items.indexWhere((item) => item.productId == productId);
+    if (itemIndex == -1) return;
+
+    // Store old quantity for rollback
+    final oldQuantity = _items[itemIndex].quantity;
+
+    // Optimistic update
+    _items[itemIndex] = _items[itemIndex].copyWith(quantity: newQuantity);
+    _calculateTotal();
     notifyListeners();
+
+    try {
+      await _firestoreService.updateCartItemQuantity(user.uid, productId, newQuantity);
+    } catch (e) {
+      // Rollback on error
+      _items[itemIndex] = _items[itemIndex].copyWith(quantity: oldQuantity);
+      _calculateTotal();
+      notifyListeners();
+      // Optionally, show a snackbar to the user about the failure
+    }
+  }
+
+  // Optimistic UI update for removal
+  Future<void> removeItem(String productId) async {
+    final user = _authService.currentUser;
+    if (user == null) return;
+
+    final itemIndex = _items.indexWhere((item) => item.productId == productId);
+    if (itemIndex == -1) return;
+
+    // Store old item for rollback
+    final removedItem = _items[itemIndex];
+    _items.removeAt(itemIndex);
+    _calculateTotal();
+    notifyListeners();
+
+    try {
+      await _firestoreService.removeCartItem(user.uid, productId);
+    } catch (e) {
+      // Rollback on error
+      _items.insert(itemIndex, removedItem);
+      _calculateTotal();
+      notifyListeners();
+    }
+  }
+
+  void _calculateTotal() {
+    _total = _items.fold(0.0, (sum, item) => sum + (item.harga * item.quantity));
+  }
+
+  void _clearCartData() {
+    _items = [];
+    _total = 0.0;
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _authService.removeListener(_onAuthChanged);
+    super.dispose();
+  }
+}
+
+// Add copyWith to CartItemUI for easier state management
+extension CartItemUICopyWith on CartItemUI {
+  CartItemUI copyWith({int? quantity}) {
+    return CartItemUI(
+      id: id,
+      productId: productId,
+      nama: nama,
+      harga: harga,
+      quantity: quantity ?? this.quantity,
+      gambar: gambar,
+      stok: stok,
+    );
   }
 }

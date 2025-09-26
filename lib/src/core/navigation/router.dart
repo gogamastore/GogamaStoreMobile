@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myapp/src/features/authentication/data/auth_service.dart';
 import 'package:myapp/src/features/authentication/presentation/login_screen.dart';
-import 'package:myapp/src/features/authentication/presentation/splash_screen.dart'; // Import splash screen
+import 'package:myapp/src/features/authentication/presentation/splash_screen.dart';
 import 'package:myapp/src/features/products/presentation/home_screen.dart';
 
 import '../../features/cart/presentation/cart_screen.dart';
@@ -22,39 +22,42 @@ class AppRouter {
   AppRouter(this.authService);
 
   late final router = GoRouter(
-    initialLocation: '/splash', // Mulai dari splash screen
+    initialLocation: '/splash',
     refreshListenable: authService,
     redirect: (BuildContext context, GoRouterState state) {
       final authStatus = authService.authStatus;
       final bool loggedIn = authStatus == AuthStatus.authenticated;
       
-      final bool onSplash = state.matchedLocation == '/splash';
-      final bool onLogin = state.matchedLocation == '/login';
+      // Define public routes that do not require authentication.
+      final publicRoutes = ['/login', '/splash'];
 
-      // Jika status belum diketahui, tetap di splash screen
+      final location = state.matchedLocation;
+      final isPublicRoute = publicRoutes.contains(location);
+
+      // If authentication status is still loading, show splash screen.
       if (authStatus == AuthStatus.unknown) {
-        return onSplash ? null : '/splash';
+        return '/splash';
       }
 
-      // Jika sudah login
+      // If the user is logged in...
       if (loggedIn) {
-        // Jika pengguna berada di halaman login atau splash, alihkan ke beranda
-        if (onLogin || onSplash) {
+        // ...and tries to access a public-only route like login, redirect to home.
+        if (isPublicRoute) {
           return '/';
         }
-      } else { // Jika belum login
-        // Jika pengguna tidak berada di halaman login, alihkan ke sana
-        if (!onLogin) {
+      } else { // If the user is not logged in...
+        // ...and tries to access a protected route, redirect to login.
+        if (!isPublicRoute) {
           return '/login';
         }
       }
 
-      // Tidak perlu pengalihan
+      // No redirection needed.
       return null;
     },
     routes: [
       GoRoute(
-        path: '/splash', // Tambahkan route untuk splash screen
+        path: '/splash',
         builder: (context, state) => const SplashScreen(),
       ),
       StatefulShellRoute.indexedStack(

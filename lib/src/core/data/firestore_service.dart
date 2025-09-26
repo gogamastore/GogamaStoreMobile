@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:rxdart/rxdart.dart';
 
 import '../../features/products/domain/product.dart';
@@ -9,8 +11,42 @@ import '../../features/products/domain/brand.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  // --- Banner Methods ---
+  Future<String> _getDownloadUrl(String gsUri) async {
+    if (gsUri.startsWith('gs://')) {
+      try {
+        final ref = _storage.refFromURL(gsUri);
+        return await ref.getDownloadURL();
+      } catch (e) {
+        developer.log('Error getting download URL for $gsUri', name: 'FirestoreService', error: e);
+        return ''; 
+      }
+    }
+    return gsUri;
+  }
+
+  Future<Product> _transformProduct(Product product) async {
+    final imageUrl = await _getDownloadUrl(product.imageUrl);
+    return Product(
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      imageUrl: imageUrl,
+      category: product.category,
+      stock: product.stock,
+    );
+  }
+  
+  Future<Brand> _transformBrand(Brand brand) async {
+    final logoUrl = await _getDownloadUrl(brand.logoUrl);
+    return Brand(
+      name: brand.name,
+      logoUrl: logoUrl,
+    );
+  }
+
   Stream<List<BannerItem>> getBannersStream() {
     return _db
         .collection('banners')
@@ -21,26 +57,22 @@ class FirestoreService {
             snapshot.docs.map((doc) => BannerItem.fromMap(doc.data())).toList());
   }
 
-  // --- Brand Methods ---
   Stream<List<Brand>> getBrandsStream() {
     return _db
         .collection('brands')
-        .orderBy('createdAt', descending: true) // Assuming you want the newest first
+        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) =>
-            snapshot.docs.map((doc) => Brand.fromMap(doc.data())).toList());
+            snapshot.docs.map((doc) => Brand.fromMap(doc.data())).toList())
+        .asyncMap((brands) => Future.wait(brands.map(_transformBrand)));
   }
 
-
-  // Stream for all products (used in Catalog)
   Stream<List<Product>> getProductsStream() {
-    // --- FIX: Added orderBy('name') to sort products alphabetically ---
     return _db.collection('products').orderBy('name').snapshots().map((snapshot) {
       return snapshot.docs.map((doc) => Product.fromFirestore(doc)).toList();
-    });
+    }).asyncMap((products) => Future.wait(products.map(_transformProduct)));
   }
 
-  // New stream for trending products
   Stream<List<Product>> getTrendingProductsStream() {
     return _db.collection('trending_products').snapshots().switchMap((snapshot) {
       final productIds = snapshot.docs.map((doc) => doc['productId'] as String).toList();
@@ -49,47 +81,97 @@ class FirestoreService {
         return Stream.value([]);
       }
 
-      // Note: This combines streams but doesn't inherently guarantee order.
-      // For trending products, the order is usually determined by the 'trending_products' collection itself.
-      return CombineLatestStream.list(
-        productIds.map((id) {
-          return _db.collection('products').doc(id).snapshots().map((doc) {
-            return doc.exists ? Product.fromFirestore(doc) : null;
-          });
-        }),
-      ).map((products) => products.where((p) => p != null).cast<Product>().toList());
+      final productStreams = productIds.map((id) {
+        return _db.collection('products').doc(id).snapshots().asyncMap((doc) async {
+          if (!doc.exists) return null;
+          final product = Product.fromFirestore(doc);
+          return await _transformProduct(product);
+        });
+      });
+
+      return CombineLatestStream.list(productStreams)
+          .map((products) => products.where((p) => p != null).cast<Product>().toList());
     });
   }
 
-  // Method to get a single product by its ID
   Future<Product?> getProduct(String id) async {
     final snapshot = await _db.collection('products').doc(id).get();
     if (snapshot.exists) {
-      return Product.fromFirestore(snapshot);
-    } else {
-      return null;
+      final product = Product.fromFirestore(snapshot);
+      return await _transformProduct(product);
     }
+    return null;
   }
 
-  // --- Cart Methods ---
+  // --- CART METHODS (REBUILT TO MIMIC REACT NATIVE SUCCESS) ---
 
-  // Get the user's cart stream
-  Stream<List<CartItem>> getCartStream(String uid) {
-    return _db.collection('carts').doc(uid).snapshots().map((snapshot) {
-      if (!snapshot.exists || snapshot.data() == null) {
-        return [];
+  Future<Map<String, dynamic>> getUserCart(String uid) async {
+    final cartSnapshot = await _db.collection('user').doc(uid).collection('cart').get();
+
+    if (cartSnapshot.docs.isEmpty) {
+      return {'items': [], 'total': 0.0};
+    }
+
+    double total = 0;
+    List<Map<String, dynamic>> items = [];
+
+    for (var cartDoc in cartSnapshot.docs) {
+      final data = cartDoc.data();
+      final productId = data['product_id'] ?? cartDoc.id;
+      final quantity = data['quantity'] as int;
+
+      final productDoc = await _db.collection('products').doc(productId).get();
+
+      if (productDoc.exists) {
+        final product = await _transformProduct(Product.fromFirestore(productDoc));
+        total += product.price * quantity;
+        items.add({
+          'id': cartDoc.id,
+          'productId': product.id,
+          'nama': product.name,
+          'harga': product.price,
+          'quantity': quantity,
+          'gambar': product.imageUrl,
+          'stok': product.stock,
+        });
       }
-      final data = snapshot.data()!;
-      final items = (data['items'] as List).map((item) => CartItem.fromMap(item as Map<String, dynamic>)).toList();
-      return items;
-    });
+    }
+    return {'items': items, 'total': total};
   }
 
-  // Update the user's cart
-  Future<void> updateCart(String uid, List<CartItem> items) {
-    final itemsMap = items.map((item) => item.toMap()).toList();
-    return _db.collection('carts').doc(uid).set({
-      'items': itemsMap,
-    });
+  Future<void> setCartItem(String uid, CartItem item) {
+    final docRef = _db.collection('user').doc(uid).collection('cart').doc(item.product.id);
+    
+    return docRef.set({
+      'product_id': item.product.id,
+      'nama': item.product.name,
+      'harga': item.product.price,
+      'gambar': item.product.imageUrl,
+      'quantity': item.quantity,
+      'updated_at': FieldValue.serverTimestamp(), 
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> updateCartItemQuantity(String uid, String productId, int newQuantity) async {
+    if (newQuantity < 1) {
+      return removeCartItem(uid, productId);
+    }
+    final docRef = _db.collection('user').doc(uid).collection('cart').doc(productId);
+    return docRef.update({'quantity': newQuantity});
+  }
+
+  Future<void> removeCartItem(String uid, String productId) {
+    final docRef = _db.collection('user').doc(uid).collection('cart').doc(productId);
+    return docRef.delete();
+  }
+
+  Future<void> clearCart(String uid) async {
+    final cartCollection = _db.collection('user').doc(uid).collection('cart');
+    final snapshot = await cartCollection.get();
+    final batch = _db.batch();
+    for (final doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    return batch.commit();
   }
 }

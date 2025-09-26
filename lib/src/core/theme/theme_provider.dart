@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+// This class is now a simple container for the application's light theme data.
 class ThemeProvider {
   static final ThemeData lightTheme = ThemeData(
-    colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+    colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue, brightness: Brightness.light),
     useMaterial3: true,
     brightness: Brightness.light,
     scaffoldBackgroundColor: const Color(0xFFF5F5F7),

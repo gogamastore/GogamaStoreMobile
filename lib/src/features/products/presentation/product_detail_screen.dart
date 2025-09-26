@@ -186,7 +186,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ElevatedButton.icon(
                 onPressed: _selectedQuantity > 0
                     ? () {
-                        context.read<CartProvider>().addItem(product, quantity: _selectedQuantity);
+                        context.read<CartProvider>().addItemToCart(product, _selectedQuantity);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text('$_selectedQuantity x ${product.name} ditambahkan ke keranjang.'),
