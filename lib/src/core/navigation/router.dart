@@ -6,7 +6,7 @@ import 'package:myapp/src/features/authentication/presentation/splash_screen.dar
 import 'package:myapp/src/features/products/presentation/home_screen.dart';
 
 import '../../features/cart/presentation/cart_screen.dart';
-import '../../features/checkout/presentation/checkout_screen.dart'; 
+import '../../features/checkout/presentation/checkout_screen.dart';
 import '../../features/orders/presentation/order_history_screen.dart';
 import '../../features/orders/presentation/order_detail_screen.dart';
 import '../../features/orders/domain/order.dart';
@@ -34,7 +34,6 @@ class AppRouter {
       final authStatus = authService.authStatus;
       final location = state.matchedLocation;
 
-      // While the auth status is being determined, stay on the splash screen.
       if (authStatus == AuthStatus.unknown) {
         return '/splash';
       }
@@ -43,20 +42,14 @@ class AppRouter {
       final isGoingToLogin = location == '/login';
       final isGoingToSplash = location == '/splash';
 
-      // If the user is logged in, they should not be on the login or splash screen.
-      // Redirect them to the home page.
       if (isLoggedIn && (isGoingToLogin || isGoingToSplash)) {
         return '/';
       }
 
-      // If the user is not logged in, they should be on the login screen.
-      // The only exception is if they are already on the splash screen, which will
-      // soon be redirected by this very logic.
       if (!isLoggedIn && !isGoingToLogin) {
         return '/login';
       }
 
-      // No redirect needed.
       return null;
     },
     routes: [
@@ -69,6 +62,7 @@ class AppRouter {
           return ScaffoldWithNavBar(navigationShell: navigationShell);
         },
         branches: [
+          // --- Home Branch ---
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -78,6 +72,7 @@ class AppRouter {
               ),
             ],
           ),
+          // --- Catalog Branch ---
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -87,6 +82,7 @@ class AppRouter {
               ),
             ],
           ),
+          // --- Profile Branch ---
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -94,6 +90,7 @@ class AppRouter {
                 name: 'profile',
                 builder: (context, state) => const ProfileScreen(),
                 routes: [
+                  // Sub-routes for Profile are kept here as they logically belong to this section
                   GoRoute(
                     path: 'edit',
                     name: 'editProfile',
@@ -140,6 +137,7 @@ class AppRouter {
           ),
         ],
       ),
+      // --- Top-level Routes (for screens without the bottom nav bar) ---
       GoRoute(
         path: '/product/:id',
         name: 'productDetail',

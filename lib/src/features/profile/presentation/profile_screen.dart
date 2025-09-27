@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'dart:developer' as developer;
 
+import '../../../core/data/firestore_service.dart';
 import '../../authentication/data/auth_service.dart';
 import '../../authentication/domain/app_user.dart';
+import '../../orders/domain/order.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -31,7 +34,7 @@ class ProfileScreen extends StatelessWidget {
       children: [
         _buildProfileHeader(context, user),
         const SizedBox(height: 24),
-        _buildStatsCard(context),
+        _buildStatsCard(context, user.uid),
         const SizedBox(height: 24),
         _buildMenuList(context),
         const SizedBox(height: 32),
@@ -101,7 +104,52 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-   Widget _buildStatsCard(BuildContext context) {
+  Widget _buildStatsCard(BuildContext context, String userId) {
+    final firestoreService = Provider.of<FirestoreService>(context, listen: false);
+
+    return StreamBuilder<List<Order>>(
+      stream: firestoreService.getOrdersStream(userId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _buildStatsRow(context, '...', '...', '...');
+        }
+
+        if (snapshot.hasError) {
+          developer.log(
+            'Error fetching order stats',
+            name: 'ProfileScreen',
+            error: snapshot.error,
+            stackTrace: snapshot.stackTrace,
+          );
+          return _buildStatsRow(context, '!', '!', '!');
+        }
+
+        final orders = snapshot.data ?? [];
+        
+        final pesananCount = orders.where((o) => 
+            o.status.toLowerCase() == 'pending' || 
+            o.status.toLowerCase() == 'processing'
+        ).length;
+
+        final dikirimCount = orders.where((o) => 
+            o.status.toLowerCase() == 'shipped'
+        ).length;
+
+        final selesaiCount = orders.where((o) => 
+            o.status.toLowerCase() == 'delivered'
+        ).length;
+
+        return _buildStatsRow(
+          context, 
+          pesananCount.toString(), 
+          dikirimCount.toString(), 
+          selesaiCount.toString()
+        );
+      },
+    );
+  }
+  
+  Widget _buildStatsRow(BuildContext context, String pesanan, String dikirim, String selesai) {
     return Card(
       elevation: 2,
       shadowColor: Colors.black26,
@@ -111,9 +159,9 @@ class ProfileScreen extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _buildStatItem(context, '12', 'Pesanan'),
-            _buildStatItem(context, '0', 'Dikirim'),
-            _buildStatItem(context, '0', 'Selesai'),
+            _buildStatItem(context, pesanan, 'Pesanan'),
+            _buildStatItem(context, dikirim, 'Dikirim'),
+            _buildStatItem(context, selesai, 'Selesai'),
           ],
         ),
       ),
@@ -200,14 +248,14 @@ class ProfileScreen extends StatelessWidget {
             TextButton(
               child: const Text('Batal'),
               onPressed: () {
-                Navigator.of(dialogContext).pop(); // Close the dialog
+                Navigator.of(dialogContext).pop();
               },
             ),
             TextButton(
               child: Text('Keluar', style: TextStyle(color: Theme.of(context).colorScheme.error)),
               onPressed: () async {
-                Navigator.of(dialogContext).pop(); // Close the dialog
-                await authService.signOut(); // Sign out
+                Navigator.of(dialogContext).pop();
+                await authService.signOut();
               },
             ),
           ],
@@ -220,6 +268,7 @@ class ProfileScreen extends StatelessWidget {
     return ElevatedButton.icon(
       onPressed: () => _showSignOutConfirmationDialog(context, authService),
       icon: const Icon(Icons.logout, color: Colors.white),
+      // --- FIX: Corrected fontWeight value ---
       label: const Text('Keluar dari Akun', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.redAccent,

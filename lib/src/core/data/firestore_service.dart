@@ -1,13 +1,15 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:developer' as developer;
-import 'package:cloud_firestore/cloud_firestore.dart';
+// FIX: Hide the internal 'Order' class from Firestore to resolve ambiguity
+import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:rxdart/rxdart.dart';
 
 import '../../features/products/domain/product.dart';
 import '../../features/cart/domain/cart_item.dart';
+import '../../features/orders/domain/order.dart';
 import '../../features/products/domain/banner_item.dart';
 import '../../features/products/domain/brand.dart';
 import '../../features/checkout/domain/bank_account.dart';
@@ -106,6 +108,16 @@ class FirestoreService {
     }
     return null;
   }
+  
+  Stream<List<Order>> getOrdersStream(String userId) {
+    return _db
+        .collection('orders')
+        .where('customerId', isEqualTo: userId)
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => Order.fromFirestore(doc)).toList());
+  }
+
 
   // --- CART METHODS ---
   Future<Map<String, dynamic>> getUserCart(String uid) async {
