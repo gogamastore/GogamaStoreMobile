@@ -67,7 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Form(
           key: _formKey,
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            // --- FIX: Removed MainAxisAlignment.center which caused a layout freeze inside SingleChildScrollView ---
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 40),

@@ -9,60 +9,98 @@ import 'src/features/authentication/data/auth_service.dart';
 import 'src/core/data/firestore_service.dart';
 import 'src/core/theme/theme_provider.dart';
 import 'src/features/profile/application/address_provider.dart';
+import 'src/features/authentication/presentation/splash_screen.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  runApp(const AppInitializer());
+}
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+class AppInitializer extends StatefulWidget {
+  const AppInitializer({super.key});
 
-  final authService = AuthService();
-  final appRouter = AppRouter(authService);
+  @override
+  AppInitializerState createState() => AppInitializerState();
+}
 
-  // The router's SplashScreen handles the initial auth state.
-  runApp(MyApp(
-    appRouter: appRouter,
-    authService: authService,
-  ));
+class AppInitializerState extends State<AppInitializer> {
+  late final Future<AuthService> _initialization;
+
+  @override
+  void initState() {
+    super.initState();
+    _initialization = _initializeServices();
+  }
+
+  Future<AuthService> _initializeServices() async {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    final authService = AuthService();
+    await authService.isReady;
+    return authService;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<AuthService>(
+      future: _initialization,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: Text('Error initializing app: ${snapshot.error}'),
+              ),
+            ),
+          );
+        }
+
+        if (snapshot.connectionState == ConnectionState.done) {
+          return MyApp(authService: snapshot.data!);
+        }
+
+        return const MaterialApp(
+          home: SplashScreen(),
+        );
+      },
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({
-    super.key,
-    required this.appRouter,
-    required this.authService,
-  });
+  const MyApp({super.key, required this.authService});
 
-  final AppRouter appRouter;
   final AuthService authService;
 
   @override
   Widget build(BuildContext context) {
+    // The router is now created here, inside the build method, ensuring it has
+    // a valid context and avoids the deadlock.
+    final appRouter = AppRouter(authService);
+
     return MultiProvider(
       providers: [
-        // Provides the authentication state throughout the app
         ChangeNotifierProvider<AuthService>.value(value: authService),
-        
-        // Provides the service for database interactions
         Provider<FirestoreService>(create: (_) => FirestoreService()),
-
         ChangeNotifierProxyProvider<AuthService, CartProvider>(
           create: (context) => CartProvider(
             context.read<FirestoreService>(),
             context.read<AuthService>(),
           ),
-          update: (context, auth, previousCart) => 
+          update: (context, auth, previousCart) =>
               previousCart ?? CartProvider(context.read<FirestoreService>(), auth),
         ),
-
         ChangeNotifierProxyProvider<AuthService, AddressProvider>(
           create: (context) => AddressProvider(
             firestoreService: context.read<FirestoreService>(),
             authService: context.read<AuthService>(),
           ),
           update: (context, auth, previousProvider) =>
-              previousProvider ?? AddressProvider(firestoreService: context.read<FirestoreService>(), authService: auth),
+              previousProvider ??
+              AddressProvider(
+                  firestoreService: context.read<FirestoreService>(),
+                  authService: auth),
         ),
       ],
       child: MaterialApp.router(

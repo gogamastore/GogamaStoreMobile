@@ -1,4 +1,4 @@
-package store.gogama.myapp
+package store.gogama.app
 
 import io.flutter.embedding.android.FlutterActivity
 

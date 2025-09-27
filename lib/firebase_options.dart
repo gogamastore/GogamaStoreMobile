@@ -41,13 +41,13 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyCuA_um2SXaPXbEcpn3yvW_mvTdwUFnHXQ',
-    appId: '1:954515661623:web:02604a58f4dca9fa2ef0b2',
+    appId: '1:954515661623:web:f6e7347d17d6e2ba2ef0b2',
     messagingSenderId: '954515661623',
     projectId: 'orderflow-r7jsk',
     authDomain: 'orderflow-r7jsk.firebaseapp.com',
     databaseURL: 'https://orderflow-r7jsk-default-rtdb.asia-southeast1.firebasedatabase.app',
     storageBucket: 'orderflow-r7jsk.firebasestorage.app',
-    measurementId: 'G-R079272FSE',
+    measurementId: 'G-9ESEJ1NPX7',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
@@ -64,7 +64,9 @@ class DefaultFirebaseOptions {
     appId: '1:954515661623:ios:233c9e6780b0fcc82ef0b2',
     messagingSenderId: '954515661623',
     projectId: 'orderflow-r7jsk',
-    storageBucket: 'orderflow-r7jsk.appspot.com',
+    databaseURL: 'https://orderflow-r7jsk-default-rtdb.asia-southeast1.firebasedatabase.app',
+    storageBucket: 'orderflow-r7jsk.firebasestorage.app',
+    androidClientId: '954515661623-28vs65k4jepc3he72lioslf13r9aaqjt.apps.googleusercontent.com',
     iosClientId: '954515661623-p92qcvi8q1a3u8ko4hbvq8v3k8f4nuoe.apps.googleusercontent.com',
     iosBundleId: 'store.gogama.app',
   );

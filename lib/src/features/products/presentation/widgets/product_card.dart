@@ -86,50 +86,63 @@ class ProductCard extends StatelessWidget {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(10.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          product.name,
-                          style: theme.textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          product.category,
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: Colors.grey[600]),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Stok: ${product.stock}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: product.stock > 0
-                                ? Colors.green[700]
-                                : Colors.red[700],
-                            fontWeight: FontWeight.bold,
+                // FIX: Wrap the content in a LayoutBuilder and SingleChildScrollView
+                // to prevent overflow while maintaining the spaceBetween layout.
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                        child: IntrinsicHeight(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    product.name,
+                                    style: theme.textTheme.titleSmall
+                                        ?.copyWith(fontWeight: FontWeight.bold),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    product.category,
+                                    style: theme.textTheme.bodySmall
+                                        ?.copyWith(color: Colors.grey[600]),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Stok: ${product.stock}',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: product.stock > 0
+                                          ? Colors.green[700]
+                                          : Colors.red[700],
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                currencyFormatter.format(product.price),
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  color: theme.colorScheme.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                    Text(
-                      currencyFormatter.format(product.price),
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.bold,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
             ),

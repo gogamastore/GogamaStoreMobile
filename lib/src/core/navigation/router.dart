@@ -32,27 +32,31 @@ class AppRouter {
     refreshListenable: authService,
     redirect: (BuildContext context, GoRouterState state) {
       final authStatus = authService.authStatus;
-      final bool loggedIn = authStatus == AuthStatus.authenticated;
-      
-      final publicRoutes = ['/login', '/splash'];
-
       final location = state.matchedLocation;
-      final isPublicRoute = publicRoutes.contains(location);
 
+      // While the auth status is being determined, stay on the splash screen.
       if (authStatus == AuthStatus.unknown) {
         return '/splash';
       }
 
-      if (loggedIn) {
-        if (isPublicRoute) {
-          return '/';
-        }
-      } else {
-        if (!isPublicRoute) {
-          return '/login';
-        }
+      final isLoggedIn = authStatus == AuthStatus.authenticated;
+      final isGoingToLogin = location == '/login';
+      final isGoingToSplash = location == '/splash';
+
+      // If the user is logged in, they should not be on the login or splash screen.
+      // Redirect them to the home page.
+      if (isLoggedIn && (isGoingToLogin || isGoingToSplash)) {
+        return '/';
       }
 
+      // If the user is not logged in, they should be on the login screen.
+      // The only exception is if they are already on the splash screen, which will
+      // soon be redirected by this very logic.
+      if (!isLoggedIn && !isGoingToLogin) {
+        return '/login';
+      }
+
+      // No redirect needed.
       return null;
     },
     routes: [

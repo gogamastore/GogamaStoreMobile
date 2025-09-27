@@ -8,42 +8,6 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:954515661623:android:4581e502fd88dea52ef0b2",
-        "android_client_info": {
-          "package_name": "com.example.myapp"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "954515661623-07ct8dg1rnu6lj9j8fh2u66lmm42sdma.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyAUU71TYtfCIqTKwj1SHlbVhqqgbfEHx6U"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "954515661623-07ct8dg1rnu6lj9j8fh2u66lmm42sdma.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "954515661623-le709fq2qo03tr8als2fjvqqeou03ccu.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "store.gogama.office.gogamaOffice"
-              }
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
         "mobilesdk_app_id": "1:954515661623:android:b8d6000e0456b43c2ef0b2",
         "android_client_info": {
           "package_name": "store.gogama.app"
@@ -51,6 +15,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "954515661623-28vs65k4jepc3he72lioslf13r9aaqjt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "store.gogama.app",
+            "certificate_hash": "ec3a258598cd81dbc192fd798792da8a59f2cd3a"
+          }
+        },
+        {
           "client_id": "954515661623-07ct8dg1rnu6lj9j8fh2u66lmm42sdma.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -68,10 +40,10 @@
               "client_type": 3
             },
             {
-              "client_id": "954515661623-le709fq2qo03tr8als2fjvqqeou03ccu.apps.googleusercontent.com",
+              "client_id": "954515661623-37p331rfb3lraj9a6hkoaiik822e4cev.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "store.gogama.office.gogamaOffice"
+                "bundle_id": "store.gogama.myapp"
               }
             }
           ]
@@ -104,10 +76,10 @@
               "client_type": 3
             },
             {
-              "client_id": "954515661623-le709fq2qo03tr8als2fjvqqeou03ccu.apps.googleusercontent.com",
+              "client_id": "954515661623-37p331rfb3lraj9a6hkoaiik822e4cev.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "store.gogama.office.gogamaOffice"
+                "bundle_id": "store.gogama.myapp"
               }
             }
           ]

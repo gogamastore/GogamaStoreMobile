@@ -23,7 +23,7 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 16),
+            // Banner doesn't need horizontal padding to be full-width
             StreamBuilder<List<BannerItem>>(
               stream: firestoreService.getBannersStream(),
               builder: (context, snapshot) {
@@ -31,23 +31,31 @@ class HomeScreen extends StatelessWidget {
                   return Center(child: Text('Error: ${snapshot.error}'));
                 }
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text('Tidak ada banner tersedia.'));
+                  return const SizedBox(
+                    height: 150, // Placeholder height for banner
+                    child: Center(child: CircularProgressIndicator()),
+                  );
                 }
                 return BannerCarousel(banners: snapshot.data!);
               },
             ),
             const SizedBox(height: 24),
-            StreamBuilder<List<Brand>>(
-              stream: firestoreService.getBrandsStream(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text('Tidak ada brand tersedia.'));
-                }
-                return FavoriteBrandList(brands: snapshot.data!);
-              },
+
+            // --- FIX: Add Padding around the brand list to prevent it from being squeezed ---
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: StreamBuilder<List<Brand>>(
+                stream: firestoreService.getBrandsStream(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(child: Text('Tidak ada brand tersedia.'));
+                  }
+                  return FavoriteBrandList(brands: snapshot.data!);
+                },
+              ),
             ),
             const SizedBox(height: 24),
 
@@ -68,6 +76,9 @@ class HomeScreen extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(height: 8), // Add a small space between title and list
+
+            // Horizontal list for trending products
             StreamBuilder<List<Product>>(
               stream: firestoreService.getTrendingProductsStream(),
               builder: (context, snapshot) {
@@ -75,7 +86,7 @@ class HomeScreen extends StatelessWidget {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
+                  return Center(child: Text('Error fetching products: ${snapshot.error}'));
                 }
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return const Center(child: Text('Tidak ada produk trending saat ini.'));
@@ -83,21 +94,21 @@ class HomeScreen extends StatelessWidget {
 
                 final trendingProducts = snapshot.data!;
 
-                return GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 0.55, 
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
+                return SizedBox(
+                  height: 320, // Give the horizontal list a fixed height
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0), // Add padding to the list itself
+                    scrollDirection: Axis.horizontal,
+                    itemCount: trendingProducts.length,
+                    itemBuilder: (context, index) {
+                      final product = trendingProducts[index];
+                      return Container(
+                        width: 200,
+                        margin: EdgeInsets.only(right: index == trendingProducts.length - 1 ? 0 : 12), // Add spacing between cards
+                        child: ProductCard(product: product, enableHero: false),
+                      );
+                    },
                   ),
-                  itemCount: trendingProducts.length,
-                  itemBuilder: (context, index) {
-                    final product = trendingProducts[index];
-                    // --- FIX: Disable Hero animation on the home screen to prevent tag conflicts ---
-                    return ProductCard(product: product, enableHero: false);
-                  },
                 );
               },
             ),
