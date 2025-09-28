@@ -32,12 +32,18 @@ class ScaffoldWithNavBar extends StatelessWidget {
             label: 'Katalog',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.trending_up),
+            label: 'Trending',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'Profil',
           ),
         ],
         currentIndex: navigationShell.currentIndex,
         selectedItemColor: Theme.of(context).colorScheme.primary,
+        unselectedItemColor: Colors.grey, // Make unselected items clearer
+        type: BottomNavigationBarType.fixed, // Prevent items from shifting
         onTap: (int index) {
           navigationShell.goBranch(
             index,

@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
 import '../application/cart_provider.dart';
+import '../../products/domain/product.dart'; // FIX: Added import for Product
+import '../../products/presentation/widgets/product_card.dart';
 
 // UI-specific model for the cart item.
 class CartItemUI {
@@ -232,7 +234,15 @@ class _CartItemCardState extends State<_CartItemCard> {
         padding: const EdgeInsets.all(8.0),
         child: Row(
           children: [
-            Image.network(item.gambar, width: 60, height: 60, fit: BoxFit.cover),
+            SizedBox(
+              width: 60,
+              height: 60,
+              child: ProductCard(
+                product: item.toProduct(),
+                isProductClickable: false,
+                enableHero: false, // Disable Hero animation in the cart
+              ),
+            ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -273,6 +283,20 @@ class _CartItemCardState extends State<_CartItemCard> {
           ],
         ),
       ),
+    );
+  }
+}
+
+extension on CartItemUI {
+  Product toProduct() {
+    return Product(
+      id: productId,
+      name: nama,
+      price: harga,
+      imageUrl: gambar,
+      stock: stok,
+      category: '', // You might need to adjust this based on your data model
+      description: '', // You might need to toProduct adjust this based on your data model
     );
   }
 }

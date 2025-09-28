@@ -14,6 +14,7 @@ import '../../features/products/domain/banner_item.dart';
 import '../../features/products/domain/brand.dart';
 import '../../features/checkout/domain/bank_account.dart';
 import '../../features/profile/domain/address.dart';
+import '../../features/products/domain/promotion.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -97,6 +98,48 @@ class FirestoreService {
 
       return CombineLatestStream.list(productStreams)
           .map((products) => products.where((p) => p != null).cast<Product>().toList());
+    });
+  }
+
+  Stream<List<PromoProduct>> getPromoProductsStream() {
+    final now = DateTime.now();
+    return _db
+        .collection('promotions')
+        .where('startDate', isLessThanOrEqualTo: now)
+        .where('endDate', isGreaterThanOrEqualTo: now)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => Promotion.fromFirestore(doc)).toList())
+        .switchMap((promotions) {
+      if (promotions.isEmpty) {
+        return Stream.value([]);
+      }
+
+      final promoProductStreams = promotions.map((promo) {
+        return _db.collection('products').doc(promo.productId).snapshots().transform(
+          StreamTransformer.fromHandlers(
+            handleData: (doc, sink) async {
+              if (doc.exists) {
+                final product = await _transformProduct(Product.fromFirestore(doc));
+                sink.add(PromoProduct(product: product, promotion: promo));
+              } else {
+                sink.add(null);
+              }
+            },
+            handleError: (error, stackTrace, sink) {
+              developer.log(
+                'Error fetching product for promotion ${promo.id}',
+                name: 'FirestoreService.getPromoProductsStream',
+                error: error,
+                stackTrace: stackTrace,
+              );
+              sink.add(null); // Emit null to keep the stream going
+            },
+          ),
+        );
+      });
+
+      return CombineLatestStream.list(promoProductStreams)
+          .map((promoProducts) => promoProducts.where((p) => p != null).cast<PromoProduct>().toList());
     });
   }
 

@@ -4,6 +4,7 @@ import 'package:myapp/src/features/authentication/data/auth_service.dart';
 import 'package:myapp/src/features/authentication/presentation/login_screen.dart';
 import 'package:myapp/src/features/authentication/presentation/splash_screen.dart';
 import 'package:myapp/src/features/products/presentation/home_screen.dart';
+import 'package:myapp/src/features/products/presentation/trending_screen.dart';
 
 import '../../features/cart/presentation/cart_screen.dart';
 import '../../features/checkout/presentation/checkout_screen.dart';
@@ -79,6 +80,16 @@ class AppRouter {
                 path: '/catalog',
                 name: 'catalog',
                 builder: (context, state) => const CatalogScreen(),
+              ),
+            ],
+          ),
+          // --- Trending Branch ---
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/trending',
+                name: 'trending',
+                builder: (context, state) => const TrendingScreen(),
               ),
             ],
           ),

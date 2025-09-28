@@ -117,10 +117,10 @@ class PaymentMethodWidget extends StatelessWidget {
       borderType: BorderType.RRect,
       child: InkWell(
         onTap: () => context.read<CheckoutProvider>().pickPaymentProof(),
-        child: SizedBox( // Corrected: Replaced Container with SizedBox
+        child: const SizedBox( // Corrected: Replaced Container with SizedBox
           height: 100,
           width: double.infinity,
-          child: const Column(
+          child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.add_a_photo, color: Colors.grey),

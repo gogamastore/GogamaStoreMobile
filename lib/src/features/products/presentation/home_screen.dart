@@ -7,6 +7,7 @@ import '../domain/brand.dart';
 import '../../../core/data/firestore_service.dart';
 import '../domain/product.dart';
 import 'widgets/product_card.dart';
+import 'widgets/promo_section.dart';
 
 import 'widgets/banner_carousel.dart';
 import 'widgets/favorite_brand_list.dart';
@@ -16,13 +17,15 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final firestoreService = Provider.of<FirestoreService>(context, listen: false);
+    final firestoreService =
+        Provider.of<FirestoreService>(context, listen: false);
 
     return Scaffold(
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 16),
             // Banner doesn't need horizontal padding to be full-width
             StreamBuilder<List<BannerItem>>(
               stream: firestoreService.getBannersStream(),
@@ -51,12 +54,17 @@ class HomeScreen extends StatelessWidget {
                     return Center(child: Text('Error: ${snapshot.error}'));
                   }
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const Center(child: Text('Tidak ada brand tersedia.'));
+                    return const Center(
+                        child: Text('Tidak ada brand tersedia.'));
                   }
                   return FavoriteBrandList(brands: snapshot.data!);
                 },
               ),
             ),
+            const SizedBox(height: 32),
+
+            // --- Promo Products Section ---
+            const PromoSection(),
             const SizedBox(height: 24),
 
             // --- Trending Products Section ---
@@ -76,7 +84,8 @@ class HomeScreen extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 8), // Add a small space between title and list
+            const SizedBox(
+                height: 8), // Add a small space between title and list
 
             // Horizontal list for trending products
             StreamBuilder<List<Product>>(
@@ -86,10 +95,13 @@ class HomeScreen extends StatelessWidget {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
-                  return Center(child: Text('Error fetching products: ${snapshot.error}'));
+                  return Center(
+                      child: 
+                          Text('Error fetching products: ${snapshot.error}'));
                 }
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text('Tidak ada produk trending saat ini.'));
+                  return const Center(
+                      child: Text('Tidak ada produk trending saat ini.'));
                 }
 
                 final trendingProducts = snapshot.data!;
@@ -97,14 +109,18 @@ class HomeScreen extends StatelessWidget {
                 return SizedBox(
                   height: 320, // Give the horizontal list a fixed height
                   child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0), // Add padding to the list itself
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0), // Add padding to the list itself
                     scrollDirection: Axis.horizontal,
                     itemCount: trendingProducts.length,
                     itemBuilder: (context, index) {
                       final product = trendingProducts[index];
                       return Container(
                         width: 200,
-                        margin: EdgeInsets.only(right: index == trendingProducts.length - 1 ? 0 : 12), // Add spacing between cards
+                        margin: EdgeInsets.only(
+                            right: index == trendingProducts.length - 1
+                                ? 0
+                                : 12), // Add spacing between cards
                         child: ProductCard(product: product, enableHero: false),
                       );
                     },
@@ -112,17 +128,17 @@ class HomeScreen extends StatelessWidget {
                 );
               },
             ),
-             const SizedBox(height: 24),
-             Padding(
+            const SizedBox(height: 24),
+            Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: ElevatedButton.icon(
                 onPressed: () => context.go('/catalog'),
                 icon: const Icon(Icons.storefront),
                 label: const Text('Lihat Semua Produk di Katalog'),
                 style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 50), // full width
-                  textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)
-                ),
+                    minimumSize: const Size(double.infinity, 50), // full width
+                    textStyle: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
             const SizedBox(height: 24),

@@ -98,7 +98,7 @@ class HelpCenterScreen extends StatelessWidget {
     final faqs = [
       {
         'question': 'Bagaimana cara menjadi reseller?',
-        'answer': 'Untuk menjadi reseller, Anda dapat menghubungi tim kami melalui WhatsApp di nomor yang tertera pada halaman \"Hubungi Kami\". Dapatkan harga spesial dan keuntungan lainnya!'
+        'answer': 'Untuk menjadi reseller, Anda dapat menghubungi tim kami melalui WhatsApp di nomor yang tertera pada halaman "Hubungi Kami". Dapatkan harga spesial dan keuntungan lainnya!'
       },
       {
         'question': 'Bagaimana cara melacak pesanan saya?',

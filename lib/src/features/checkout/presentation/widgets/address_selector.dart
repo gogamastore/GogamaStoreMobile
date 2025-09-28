@@ -49,7 +49,7 @@ class _AddressSelectorState extends State<AddressSelector> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         DropdownButtonFormField<Address>(
-          value: currentSelection,
+          initialValue: currentSelection,
           hint: const Text('Pilih dari alamat Anda'),
           isExpanded: true,
           onChanged: (Address? newValue) {

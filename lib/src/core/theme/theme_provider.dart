@@ -4,14 +4,16 @@ import 'package:google_fonts/google_fonts.dart';
 // This class is now a simple container for the application's light theme data.
 class ThemeProvider {
   static final ThemeData lightTheme = ThemeData(
-    colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue, brightness: Brightness.light),
+    colorScheme: ColorScheme.fromSeed(
+        seedColor: Colors.blue, brightness: Brightness.light),
     useMaterial3: true,
     brightness: Brightness.light,
     scaffoldBackgroundColor: const Color(0xFFF5F5F7),
     textTheme: GoogleFonts.poppinsTextTheme(),
     appBarTheme: AppBarTheme(
       backgroundColor: Colors.blue,
-      titleTextStyle: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+      titleTextStyle: GoogleFonts.poppins(
+          fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
       elevation: 0,
       iconTheme: const IconThemeData(color: Colors.white),
     ),
