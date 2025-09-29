@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:developer' as developer;
-// FIX: Hide the internal 'Order' class from Firestore to resolve ambiguity
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
@@ -20,7 +19,8 @@ class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  Future<String> _getDownloadUrl(String gsUri) async {
+  // ... (fungsi lainnya tetap sama) ...
+    Future<String> _getDownloadUrl(String gsUri) async {
     if (gsUri.startsWith('gs://')) {
       try {
         final ref = _storage.refFromURL(gsUri);
@@ -161,8 +161,7 @@ class FirestoreService {
         .map((snapshot) => snapshot.docs.map((doc) => Order.fromFirestore(doc)).toList());
   }
 
-
-  // --- CART METHODS ---
+  // --- LOGIKA BARU DIMULAI DI SINI ---
   Future<Map<String, dynamic>> getUserCart(String uid) async {
     final cartSnapshot = await _db.collection('user').doc(uid).collection('cart').get();
 
@@ -178,24 +177,30 @@ class FirestoreService {
       final productId = data['product_id'] ?? cartDoc.id;
       final quantity = data['quantity'] as int;
 
+      // Ambil harga langsung dari data keranjang, bukan dari produk asli
+      final itemPrice = (data['harga'] as num?)?.toDouble() ?? 0.0;
+
       final productDoc = await _db.collection('products').doc(productId).get();
 
       if (productDoc.exists) {
+        // Kita tetap butuh data produk asli untuk stok dan gambar
         final product = await _transformProduct(Product.fromFirestore(productDoc));
-        total += product.price * quantity;
+        
+        total += itemPrice * quantity; // Gunakan harga dari keranjang untuk kalkulasi total
         items.add({
           'id': cartDoc.id,
           'productId': product.id,
           'nama': product.name,
-          'harga': product.price,
+          'harga': itemPrice, // <-- PERBAIKAN: Gunakan harga dari keranjang
           'quantity': quantity,
           'gambar': product.imageUrl,
-          'stok': product.stock,
+          'stok': product.stock, 
         });
       }
     }
     return {'items': items, 'total': total};
   }
+  // --- LOGIKA BARU BERAKHIR DI SINI ---
 
   Future<void> setCartItem(String uid, CartItem item) {
     final docRef = _db.collection('user').doc(uid).collection('cart').doc(item.product.id);
@@ -203,7 +208,7 @@ class FirestoreService {
     return docRef.set({
       'product_id': item.product.id,
       'nama': item.product.name,
-      'harga': item.product.price,
+      'harga': item.product.price, // Harga (diskon) dari objek CartItem
       'gambar': item.product.imageUrl,
       'quantity': item.quantity,
       'updated_at': FieldValue.serverTimestamp(), 
@@ -233,9 +238,8 @@ class FirestoreService {
     return batch.commit();
   }
 
-  // --- CHECKOUT & ORDER METHODS ---
-
-  String getNewOrderId() {
+  // ... (sisa fungsi tetap sama) ...
+    String getNewOrderId() {
     return _db.collection('orders').doc().id;
   }
 

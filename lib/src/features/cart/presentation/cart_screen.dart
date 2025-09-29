@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart'; // Impor baru
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -6,10 +7,8 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
 import '../application/cart_provider.dart';
-import '../../products/domain/product.dart'; // FIX: Added import for Product
-import '../../products/presentation/widgets/product_card.dart';
 
-// UI-specific model for the cart item.
+// Model UI-spesifik untuk item keranjang.
 class CartItemUI {
   final String id;
   final String productId;
@@ -89,7 +88,7 @@ class CartScreen extends StatelessWidget {
           if (cart.items.isEmpty) {
             return RefreshIndicator(
               onRefresh: cart.fetchCart,
-              child: ListView( // To allow pull-to-refresh even when empty
+              child: ListView( // Agar bisa pull-to-refresh meskipun kosong
                 children: const [
                   SizedBox(height: 150),
                   Center(
@@ -142,7 +141,6 @@ class CartScreen extends StatelessWidget {
                     minimumSize: const Size(double.infinity, 50),
                   ),
                   onPressed: () {
-                    // Corrected: Use push to keep the cart page in the stack
                     context.push('/checkout');
                   },
                   child: const Text('Checkout'),
@@ -234,22 +232,30 @@ class _CartItemCardState extends State<_CartItemCard> {
         padding: const EdgeInsets.all(8.0),
         child: Row(
           children: [
+            // --- PERUBAHAN DIMULAI DI SINI ---
             SizedBox(
-              width: 60,
-              height: 60,
-              child: ProductCard(
-                product: item.toProduct(),
-                isProductClickable: false,
-                enableHero: false, // Disable Hero animation in the cart
+              width: 80, // Lebar disesuaikan
+              height: 80, // Tinggi disesuaikan
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8.0), // Sudut membulat
+                child: CachedNetworkImage(
+                  imageUrl: item.gambar,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                  errorWidget: (context, url, error) => const Icon(Icons.broken_image, color: Colors.grey),
+                ),
               ),
             ),
-            const SizedBox(width: 14),
+            // --- PERUBAHAN BERAKHIR DI SINI ---
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(item.nama, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                  Text(NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ').format(item.harga)),
+                  Text(item.nama, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  // Secara eksplisit menampilkan harga dari item keranjang
+                  Text(NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ').format(item.harga), style: const TextStyle(fontSize: 14, color: Colors.deepOrange)),
                 ],
               ),
             ),
@@ -260,7 +266,7 @@ class _CartItemCardState extends State<_CartItemCard> {
                   onPressed: () => _updateByButton(-1),
                 ),
                 SizedBox(
-                  width: 30,
+                  width: 35,
                   child: TextField(
                     controller: _quantityController,
                     textAlign: TextAlign.center,
@@ -287,16 +293,4 @@ class _CartItemCardState extends State<_CartItemCard> {
   }
 }
 
-extension on CartItemUI {
-  Product toProduct() {
-    return Product(
-      id: productId,
-      name: nama,
-      price: harga,
-      imageUrl: gambar,
-      stock: stok,
-      category: '', // You might need to adjust this based on your data model
-      description: '', // You might need to toProduct adjust this based on your data model
-    );
-  }
-}
+// Extension toProduct() yang bermasalah telah dihapus

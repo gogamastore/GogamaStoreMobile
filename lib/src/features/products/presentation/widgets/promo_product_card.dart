@@ -17,7 +17,6 @@ class PromoProductCard extends StatelessWidget {
     final formatCurrency =
         NumberFormat.simpleCurrency(locale: 'id_ID', decimalDigits: 0);
 
-    // Correctly use the discountPrice from the promotion model
     final discountedPrice = promotion.discountPrice;
 
     return Card(
@@ -27,7 +26,10 @@ class PromoProductCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: InkWell(
-        onTap: () => context.push('/product/${product.id}', extra: product),
+        onTap: () {
+          final productWithDiscount = product.copyWith(price: discountedPrice);
+          context.push('/product/${product.id}', extra: productWithDiscount);
+        },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

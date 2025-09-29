@@ -19,6 +19,28 @@ class Product {
     required this.stock,
   });
 
+  // --- LOGIKA BARU DIMULAI DI SINI ---
+  Product copyWith({
+    String? id,
+    String? name,
+    String? description,
+    double? price,
+    String? imageUrl,
+    String? category,
+    int? stock,
+  }) {
+    return Product(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      price: price ?? this.price,
+      imageUrl: imageUrl ?? this.imageUrl,
+      category: category ?? this.category,
+      stock: stock ?? this.stock,
+    );
+  }
+  // --- LOGIKA BARU BERAKHIR DI SINI ---
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -47,7 +69,6 @@ class Product {
     }
 
     return Product(
-      // This now correctly receives the 'id' from the fromFirestore factory.
       id: map['id'] as String? ?? '',
       name: map['name'] as String? ?? 'Nama Tidak Diketahui',
       description: map['description'] as String? ?? '',
@@ -58,13 +79,9 @@ class Product {
     );
   }
 
-  // --- THE DEFINITIVE FIX ---
   factory Product.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
-    // CRITICAL FIX: Manually insert the document's ID into the data map.
-    // This ensures that fromMap can access the ID and create a valid Product object.
     data['id'] = doc.id;
-    // Now, delegate to fromMap, which will correctly assemble the object.
     return Product.fromMap(data);
   }
 }

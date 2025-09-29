@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../domain/product.dart';
+import '../../application/promotion_provider.dart';
 
 class ProductCard extends StatelessWidget {
   final Product product;
@@ -14,7 +16,7 @@ class ProductCard extends StatelessWidget {
     super.key,
     required this.product,
     this.isProductClickable = true,
-    this.enableHero = true, // Default to true for backward compatibility
+    this.enableHero = true,
   });
 
   @override
@@ -28,13 +30,18 @@ class ProductCard extends StatelessWidget {
     final theme = Theme.of(context);
     final bool isOutOfStock = product.stock <= 0;
 
+    final promoProvider = context.watch<PromotionProvider>();
+    final promotion = promoProvider.getPromotionForProduct(product.id);
+    final discountedPrice = promotion?.discountPrice;
+    final hasPromo = promotion != null && discountedPrice != null;
+
     void handleTap() {
       if (isProductClickable && !isOutOfStock) {
-        context.push('/product/${product.id}', extra: product);
+        final productToSend = hasPromo ? product.copyWith(price: discountedPrice) : product;
+        context.push('/product/${product.id}', extra: productToSend);
       }
     }
 
-    // Define the image widget that might be wrapped by Hero
     Widget imageWidget = Stack(
       fit: StackFit.expand,
       children: [
@@ -59,6 +66,29 @@ class ProductCard extends StatelessWidget {
               ),
             ),
           ),
+        if (hasPromo)
+          Align(
+            alignment: Alignment.topLeft,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                // --- PERBAIKAN DEPRECATED MEMBER ---
+                color: Colors.red.withAlpha(230), // Mengganti withOpacity
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  bottomRight: Radius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'PROMO',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 10,
+                ),
+              ),
+            ),
+          ),
       ],
     );
 
@@ -75,7 +105,6 @@ class ProductCard extends StatelessWidget {
           children: [
             AspectRatio(
               aspectRatio: 1.0,
-              // Conditionally wrap the image with a Hero widget
               child: enableHero
                   ? Hero(
                       tag: 'product-image-${product.id}',
@@ -86,8 +115,6 @@ class ProductCard extends StatelessWidget {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(10.0),
-                // FIX: Wrap the content in a LayoutBuilder and SingleChildScrollView
-                // to prevent overflow while maintaining the spaceBetween layout.
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     return SingleChildScrollView(
@@ -128,15 +155,38 @@ class ProductCard extends StatelessWidget {
                                   ),
                                 ],
                               ),
-                              Text(
-                                currencyFormatter.format(product.price),
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  color: theme.colorScheme.primary,
-                                  fontWeight: FontWeight.bold,
+                              if (hasPromo)
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      currencyFormatter.format(product.price),
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        decoration: TextDecoration.lineThrough,
+                                        color: Colors.red[400],
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                    Text(
+                                      // --- PERBAIKAN UNNECESSARY NULL ASSERTION ---
+                                      currencyFormatter.format(discountedPrice),
+                                      style: theme.textTheme.titleMedium?.copyWith(
+                                        color: theme.colorScheme.primary,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              else
+                                Text(
+                                  currencyFormatter.format(product.price),
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    color: theme.colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
                             ],
                           ),
                         ),

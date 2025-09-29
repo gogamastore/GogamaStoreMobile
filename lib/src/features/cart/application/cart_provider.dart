@@ -53,14 +53,22 @@ class CartProvider with ChangeNotifier {
     }
   }
 
-  Future<void> addItemToCart(Product product, int quantity) async {
+  // --- LOGIKA BARU DIMULAI DI SINI ---
+  Future<void> addItemToCart(Product product, int quantity, {double? discountPrice}) async {
     final user = _authService.currentUser;
     if (user == null) return;
 
-    final cartItem = CartItem(product: product, quantity: quantity);
+    // Jika ada harga diskon, buat salinan produk dengan harga baru
+    // Jika tidak, gunakan produk asli
+    final productToAdd = discountPrice != null 
+      ? product.copyWith(price: discountPrice) 
+      : product;
+
+    final cartItem = CartItem(product: productToAdd, quantity: quantity);
     await _firestoreService.setCartItem(user.uid, cartItem);
-    await fetchCart();
+    await fetchCart(); // Ambil ulang data keranjang untuk memperbarui UI
   }
+  // --- LOGIKA BARU BERAKHIR DI SINI ---
 
   // Optimistic UI update for quantity
   Future<void> updateQuantity(String productId, int newQuantity) async {

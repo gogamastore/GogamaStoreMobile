@@ -10,6 +10,7 @@ import 'src/core/data/firestore_service.dart';
 import 'src/core/theme/theme_provider.dart';
 import 'src/features/profile/application/address_provider.dart';
 import 'src/features/authentication/presentation/splash_screen.dart';
+import 'src/features/products/application/promotion_provider.dart'; // Impor baru
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,14 +76,16 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // The router is now created here, inside the build method, ensuring it has
-    // a valid context and avoids the deadlock.
     final appRouter = AppRouter(authService);
 
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<AuthService>.value(value: authService),
         Provider<FirestoreService>(create: (_) => FirestoreService()),
+        // --- PENAMBAHAN PROVIDER PROMOSI ---
+        ChangeNotifierProvider<PromotionProvider>(
+          create: (context) => PromotionProvider(context.read<FirestoreService>()),
+        ),
         ChangeNotifierProxyProvider<AuthService, CartProvider>(
           create: (context) => CartProvider(
             context.read<FirestoreService>(),

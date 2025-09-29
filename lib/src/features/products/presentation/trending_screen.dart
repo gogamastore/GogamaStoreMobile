@@ -56,12 +56,13 @@ class TrendingScreen extends StatelessWidget {
               crossAxisCount: 2,
               crossAxisSpacing: 8.0,
               mainAxisSpacing: 8.0,
-              childAspectRatio: 0.5,
+              childAspectRatio: 0.55,
             ),
             itemCount: products.length,
             itemBuilder: (context, index) {
               final product = products[index];
-              return ProductCard(product: product);
+              // --- PERBAIKAN: Nonaktifkan Hero di halaman ini untuk mencegah konflik ---
+              return ProductCard(product: product, enableHero: false);
             },
           );
         },

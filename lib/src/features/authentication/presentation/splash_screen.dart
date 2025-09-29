@@ -5,9 +5,14 @@ class SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
+      backgroundColor: Colors.white, // Atur warna latar belakang jika perlu
       body: Center(
-        child: CircularProgressIndicator(),
+        child: Image.asset(
+          'assets/images/splash-animation.gif',
+          // Anda bisa mengatur lebar atau tinggi jika perlu
+          // width: 250,
+        ),
       ),
     );
   }
