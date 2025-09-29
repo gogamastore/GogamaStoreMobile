@@ -2,7 +2,7 @@ name: myapp
 description: "Gogama Store - Your one-stop shop for everything."
 publish_to: 'none'
 
-version: 2.1.1+4
+version: 2.2.1+4
 
 environment:
   sdk: '>=3.2.0 <4.0.0'

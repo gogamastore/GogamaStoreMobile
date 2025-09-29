@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myapp/src/features/authentication/data/auth_service.dart';
 import 'package:myapp/src/features/authentication/presentation/login_screen.dart';
+import 'package:myapp/src/features/authentication/presentation/reseller_registration_screen.dart'; // Import baru
 import 'package:myapp/src/features/authentication/presentation/splash_screen.dart';
 import 'package:myapp/src/features/products/presentation/home_screen.dart';
 import 'package:myapp/src/features/products/presentation/trending_screen.dart';
@@ -40,14 +41,18 @@ class AppRouter {
       }
 
       final isLoggedIn = authStatus == AuthStatus.authenticated;
+      // Tambahkan pengecekan untuk halaman registrasi
       final isGoingToLogin = location == '/login';
+      final isGoingToRegister = location == '/register-reseller';
       final isGoingToSplash = location == '/splash';
 
-      if (isLoggedIn && (isGoingToLogin || isGoingToSplash)) {
+      // Jika sudah login, jangan biarkan ke halaman login, register, atau splash
+      if (isLoggedIn && (isGoingToLogin || isGoingToSplash || isGoingToRegister)) {
         return '/';
       }
 
-      if (!isLoggedIn && !isGoingToLogin) {
+      // Jika belum login dan tidak sedang menuju halaman login atau register, arahkan ke login
+      if (!isLoggedIn && !isGoingToLogin && !isGoingToRegister) {
         return '/login';
       }
 
@@ -101,7 +106,6 @@ class AppRouter {
                 name: 'profile',
                 builder: (context, state) => const ProfileScreen(),
                 routes: [
-                  // Sub-routes for Profile are kept here as they logically belong to this section
                   GoRoute(
                     path: 'edit',
                     name: 'editProfile',
@@ -148,7 +152,7 @@ class AppRouter {
           ),
         ],
       ),
-      // --- Top-level Routes (for screens without the bottom nav bar) ---
+      // --- Top-level Routes ---
       GoRoute(
         path: '/product/:id',
         name: 'productDetail',
@@ -184,6 +188,12 @@ class AppRouter {
         path: '/login',
         name: 'login',
         builder: (context, state) => const LoginScreen(),
+      ),
+      // --- RUTE BARU UNTUK REGISTRASI RESELLER ---
+      GoRoute(
+        path: '/register-reseller',
+        name: 'registerReseller',
+        builder: (context, state) => const ResellerRegistrationScreen(),
       ),
     ],
   );

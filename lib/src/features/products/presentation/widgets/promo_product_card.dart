@@ -38,8 +38,8 @@ class PromoProductCard extends StatelessWidget {
                 fit: BoxFit.cover,
                 placeholder: (context, url) =>
                     const Center(child: CircularProgressIndicator()),
-                errorWidget: (context, url, error) =>
-                    const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+                errorWidget: (context, url, error) => const Center(
+                    child: Icon(Icons.broken_image, color: Colors.grey)),
               ),
             ),
             Expanded(
@@ -47,7 +47,7 @@ class PromoProductCard extends StatelessWidget {
                 padding: const EdgeInsets.all(8.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center, 
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       product.name,
@@ -60,7 +60,7 @@ class PromoProductCard extends StatelessWidget {
                       formatCurrency.format(product.price),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             decoration: TextDecoration.lineThrough,
-                            color: Colors.grey[600],
+                            color: const Color.fromARGB(255, 255, 2, 2),
                           ),
                     ),
                     Text(
