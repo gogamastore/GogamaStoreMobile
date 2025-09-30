@@ -88,16 +88,20 @@ class CartScreen extends StatelessWidget {
           if (cart.items.isEmpty) {
             return RefreshIndicator(
               onRefresh: cart.fetchCart,
-              child: ListView( // Agar bisa pull-to-refresh meskipun kosong
+              child: ListView(
+                // Agar bisa pull-to-refresh meskipun kosong
                 children: const [
                   SizedBox(height: 150),
                   Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey),
+                        Icon(Icons.shopping_cart_outlined,
+                            size: 64, color: Colors.grey),
                         SizedBox(height: 16),
-                        Text('Keranjang Kosong', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                        Text('Keranjang Kosong',
+                            style: TextStyle(
+                                fontSize: 24, fontWeight: FontWeight.bold)),
                         Text('Belum ada produk di keranjang Anda'),
                       ],
                     ),
@@ -126,10 +130,16 @@ class CartScreen extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Total:', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    const Text('Total:',
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold)),
                     Text(
-                      NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ').format(cart.total),
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green),
+                      NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ')
+                          .format(cart.total),
+                      style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green),
                     ),
                   ],
                 ),
@@ -170,7 +180,8 @@ class _CartItemCardState extends State<_CartItemCard> {
   @override
   void initState() {
     super.initState();
-    _quantityController = TextEditingController(text: widget.item.quantity.toString());
+    _quantityController =
+        TextEditingController(text: widget.item.quantity.toString());
   }
 
   @override
@@ -183,35 +194,71 @@ class _CartItemCardState extends State<_CartItemCard> {
   @override
   void didUpdateWidget(covariant _CartItemCard oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // Cek jika kuantitas dari server/state berubah DAN tidak sama dengan yang ada di input field
     if (widget.item.quantity != oldWidget.item.quantity &&
         widget.item.quantity.toString() != _quantityController.text) {
       final currentSelection = _quantityController.selection;
-      _quantityController.text = widget.item.quantity.toString();
-      _quantityController.selection = currentSelection;
+      final newText = widget.item.quantity.toString();
+      _quantityController.text = newText;
+
+      // Amankan posisi kursor. Jika posisi sebelumnya lebih besar dari panjang teks baru,
+      // pindahkan kursor ke akhir.
+      final newOffset = currentSelection.baseOffset > newText.length
+          ? newText.length
+          : currentSelection.baseOffset;
+
+      _quantityController.selection =
+          TextSelection.collapsed(offset: newOffset);
     }
   }
 
   void _onQuantityChanged(String value) {
+    // Batalkan debounce sebelumnya jika ada
     if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce = Timer(const Duration(milliseconds: 800), () {
-      int newQuantity = int.tryParse(value) ?? widget.item.quantity;
 
-      if (newQuantity > widget.item.stok) {
-        newQuantity = widget.item.stok;
-      } else if (newQuantity < 0) {
+    int newQuantity = int.tryParse(value) ?? 0;
+    final stock = widget.item.stok;
+
+    // --- LOGIKA PINTAR DIMULAI DI SINI ---
+    // Jika kuantitas yang diinput melebihi stok
+    if (newQuantity > stock) {
+      // Langsung perbaiki nilai di text field
+      _quantityController.text = stock.toString();
+      // Pindahkan kursor ke akhir
+      _quantityController.selection = TextSelection.fromPosition(
+        TextPosition(offset: _quantityController.text.length),
+      );
+      // Atur nilai kuantitas yang akan dikirim ke provider ke nilai stok
+      newQuantity = stock;
+    }
+    // --- LOGIKA PINTAR BERAKHIR DI SINI ---
+
+    // Gunakan debounce untuk mengirim pembaruan ke provider
+    _debounce = Timer(const Duration(milliseconds: 800), () {
+      // Pastikan nilai tidak negatif
+      if (newQuantity < 0) {
         newQuantity = 0;
       }
-      
+
+      // Jika kuantitas menjadi 0, hapus item. Jika tidak, perbarui.
       if (newQuantity == 0) {
-        context.read<CartProvider>().removeItem(widget.item.productId);
+        // Jangan panggil removeItem jika widget sudah tidak ada di tree
+        if (mounted) {
+          context.read<CartProvider>().removeItem(widget.item.productId);
+        }
       } else {
-        context.read<CartProvider>().updateQuantity(widget.item.productId, newQuantity);
+        if (mounted) {
+          context
+              .read<CartProvider>()
+              .updateQuantity(widget.item.productId, newQuantity);
+        }
       }
     });
   }
 
   void _updateByButton(int change) {
-    final currentVal = int.tryParse(_quantityController.text) ?? widget.item.quantity;
+    final currentVal =
+        int.tryParse(_quantityController.text) ?? widget.item.quantity;
     int newQuantity = currentVal + change;
 
     if (newQuantity > widget.item.stok) newQuantity = widget.item.stok;
@@ -219,7 +266,9 @@ class _CartItemCardState extends State<_CartItemCard> {
       context.read<CartProvider>().removeItem(widget.item.productId);
     } else {
       _quantityController.text = newQuantity.toString();
-      context.read<CartProvider>().updateQuantity(widget.item.productId, newQuantity);
+      context
+          .read<CartProvider>()
+          .updateQuantity(widget.item.productId, newQuantity);
     }
   }
 
@@ -232,59 +281,74 @@ class _CartItemCardState extends State<_CartItemCard> {
         padding: const EdgeInsets.all(8.0),
         child: Row(
           children: [
-            // --- PERUBAHAN DIMULAI DI SINI ---
             SizedBox(
-              width: 80, // Lebar disesuaikan
-              height: 80, // Tinggi disesuaikan
+              width: 50,
+              height: 50,
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(8.0), // Sudut membulat
+                borderRadius: BorderRadius.circular(8.0),
                 child: CachedNetworkImage(
                   imageUrl: item.gambar,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                  errorWidget: (context, url, error) => const Icon(Icons.broken_image, color: Colors.grey),
+                  placeholder: (context, url) =>
+                      const Center(child: CircularProgressIndicator()),
+                  errorWidget: (context, url, error) =>
+                      const Icon(Icons.broken_image, color: Colors.grey),
                 ),
               ),
             ),
-            // --- PERUBAHAN BERAKHIR DI SINI ---
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(item.nama, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text(item.nama,
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  // Secara eksplisit menampilkan harga dari item keranjang
-                  Text(NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ').format(item.harga), style: const TextStyle(fontSize: 14, color: Colors.deepOrange)),
+                  Text(
+                      NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ')
+                          .format(item.harga),
+                      style: const TextStyle(
+                          fontSize: 12, color: Colors.deepOrange)),
                 ],
               ),
             ),
             Row(
               children: [
                 IconButton(
+                  padding: EdgeInsets.zero, // Hapus padding
+                  constraints: const BoxConstraints(), // Hapus batasan ukuran
+                  iconSize: 18.0, // Atur ukuran ikon
                   icon: const Icon(Icons.remove),
                   onPressed: () => _updateByButton(-1),
                 ),
                 SizedBox(
-                  width: 35,
+                  width: 25,
                   child: TextField(
                     controller: _quantityController,
                     textAlign: TextAlign.center,
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     onChanged: _onQuantityChanged,
-                    decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.zero),
+                    style: const TextStyle(fontSize: 12),
+                    decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero),
                   ),
                 ),
                 IconButton(
+                  padding: EdgeInsets.zero, // Hapus padding
+                  constraints: const BoxConstraints(), // Hapus batasan ukuran
+                  iconSize: 18.0, // Atur ukuran ikon
                   icon: const Icon(Icons.add),
-                  onPressed: () => _updateByButton(1),
+                  onPressed: () => _updateByButton(-1),
                 ),
               ],
             ),
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () => context.read<CartProvider>().removeItem(item.productId),
+              onPressed: () =>
+                  context.read<CartProvider>().removeItem(item.productId),
             )
           ],
         ),
@@ -292,5 +356,3 @@ class _CartItemCardState extends State<_CartItemCard> {
     );
   }
 }
-
-// Extension toProduct() yang bermasalah telah dihapus
