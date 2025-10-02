@@ -38,10 +38,10 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         return ['Pending', 'pending'];
       case 'Diproses':
         return ['Processing', 'processing'];
-      case 'Dikirim':
-        return ['Delivered', 'delivered'];
-      case 'Selesai':
-        return ['Shipped', 'shipped'];
+      case 'Dikirim': // Logika Diperbaiki
+        return ['shipped', 'Shipped'];
+      case 'Selesai': // Logika Diperbaiki
+        return ['delivered', 'Delivered'];
       case 'Dibatalkan':
         return ['Cancelled', 'cancelled'];
       default:
@@ -195,8 +195,8 @@ class OrderCard extends StatelessWidget {
     final s = status.toLowerCase();
     if (s == 'pending') return 'Belum Proses';
     if (s == 'processing') return 'Diproses';
-    if (s == 'delivered') return 'Dikirim';
-    if (s == 'shipped') return 'Selesai';
+    if (s == 'shipped') return 'Dikirim';      // Logika Diperbaiki
+    if (s == 'delivered') return 'Selesai';      // Logika Diperbaiki
     if (s == 'cancelled') return 'Dibatalkan';
     return status; // Fallback
   }
