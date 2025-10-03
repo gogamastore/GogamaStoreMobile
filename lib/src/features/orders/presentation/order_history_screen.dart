@@ -38,9 +38,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         return ['Pending', 'pending'];
       case 'Diproses':
         return ['Processing', 'processing'];
-      case 'Dikirim': // Logika Diperbaiki
+      case 'Dikirim':
         return ['shipped', 'Shipped'];
-      case 'Selesai': // Logika Diperbaiki
+      case 'Selesai':
         return ['delivered', 'Delivered'];
       case 'Dibatalkan':
         return ['Cancelled', 'cancelled'];
@@ -195,8 +195,8 @@ class OrderCard extends StatelessWidget {
     final s = status.toLowerCase();
     if (s == 'pending') return 'Belum Proses';
     if (s == 'processing') return 'Diproses';
-    if (s == 'shipped') return 'Dikirim';      // Logika Diperbaiki
-    if (s == 'delivered') return 'Selesai';      // Logika Diperbaiki
+    if (s == 'shipped') return 'Dikirim';
+    if (s == 'delivered') return 'Selesai';
     if (s == 'cancelled') return 'Dibatalkan';
     return status; // Fallback
   }
@@ -207,9 +207,67 @@ class OrderCard extends StatelessWidget {
     if (ps == 'paid') return 'Lunas';
     return paymentStatus; // Fallback
   }
+  
+  void _showConfirmationDialog(BuildContext context, String orderId) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Konfirmasi Pesanan'),
+          content: const Text('Apakah Anda yakin pesanan ini telah diterima?'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Ya'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                _updateOrderStatusToDelivered(context, orderId);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _updateOrderStatusToDelivered(BuildContext context, String orderId) {
+    FirebaseFirestore.instance
+        .collection('orders')
+        .doc(orderId)
+        .update({'status': 'delivered'})
+        .then((_) {
+      // --- PERBAIKAN DIMULAI DI SINI ---
+      if (!context.mounted) return; // Cek jika widget masih ada di tree
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Status pesanan berhasil diperbarui ke "Selesai".'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }).catchError((error) {
+      if (!context.mounted) return; // Cek jika widget masih ada di tree
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memperbarui status: $error'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    });
+    // --- PERBAIKAN BERAKHIR DI SINI ---
+  }
 
   @override
   Widget build(BuildContext context) {
+    final normalizedStatus = _normalizeStatus(order.status);
+
     return Card(
       elevation: 3,
       margin: const EdgeInsets.only(bottom: 16.0),
@@ -228,7 +286,7 @@ class OrderCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('#${order.id.substring(0, 8).toUpperCase()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  _buildStatusChip(_normalizeStatus(order.status)),
+                  _buildStatusChip(normalizedStatus),
                 ],
               ),
               Text(order.formattedDate, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
@@ -253,10 +311,32 @@ class OrderCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              const Align(
-                alignment: Alignment.centerRight,
-                child: Icon(Icons.chevron_right, color: Colors.grey),
-              )
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                   const Text('Lihat Detail', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                   const SizedBox(width: 4),
+                   const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+                ],
+              ),
+
+              if (normalizedStatus == 'Dikirim')
+                Padding(
+                  padding: const EdgeInsets.only(top: 16.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        _showConfirmationDialog(context, order.id);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Pesanan Diterima'),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
