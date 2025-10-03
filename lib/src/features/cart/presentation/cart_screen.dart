@@ -341,7 +341,7 @@ class _CartItemCardState extends State<_CartItemCard> {
                   constraints: const BoxConstraints(), // Hapus batasan ukuran
                   iconSize: 18.0, // Atur ukuran ikon
                   icon: const Icon(Icons.add),
-                  onPressed: () => _updateByButton(-1),
+                  onPressed: () => _updateByButton(1),
                 ),
               ],
             ),
