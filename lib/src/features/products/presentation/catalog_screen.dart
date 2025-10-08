@@ -46,7 +46,6 @@ class _CatalogScreenState extends State<CatalogScreen> {
         stream: _productsStream,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            // Improved error handling to show the actual Firebase error
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -65,6 +64,24 @@ class _CatalogScreenState extends State<CatalogScreen> {
 
           var products = snapshot.data ?? [];
 
+          // --- LOGIKA SORTIR BARU DIMULAI DI SINI ---
+          products.sort((a, b) {
+            // Prioritas 1: Produk dengan stok > 0 (Tersedia) diutamakan.
+            final aTersedia = a.stock > 0;
+            final bTersedia = b.stock > 0;
+
+            if (aTersedia && !bTersedia) {
+              return -1; // a (tersedia) diletakkan sebelum b (habis).
+            }
+            if (!aTersedia && bTersedia) {
+              return 1; // a (habis) diletakkan setelah b (tersedia).
+            }
+
+            // Prioritas 2: Jika status stok sama, urutkan berdasarkan nama (A-Z).
+            return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+          });
+          // --- LOGIKA SORTIR BARU BERAKHIR DI SINI ---
+
           if (_searchQuery.isNotEmpty) {
             products = products.where((product) {
               return product.name.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -81,13 +98,11 @@ class _CatalogScreenState extends State<CatalogScreen> {
             );
           }
 
-          // The definitive fix: Decreasing childAspectRatio to give cards more height.
           return Padding(
             padding: const EdgeInsets.all(8.0),
             child: GridView.builder(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                // Decreased from 0.7 to 0.6 to make cards taller.
                 childAspectRatio: 0.55,
                 crossAxisSpacing: 8.0,
                 mainAxisSpacing: 8.0,

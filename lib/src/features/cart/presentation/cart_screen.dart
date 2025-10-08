@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'package:cached_network_image/cached_network_image.dart'; // Impor baru
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -55,8 +56,92 @@ class CartItemUI {
   }
 }
 
-class CartScreen extends StatelessWidget {
+// --- PERUBAHAN: Diubah menjadi StatefulWidget untuk menangani state validasi stok ---
+class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
+
+  @override
+  State<CartScreen> createState() => _CartScreenState();
+}
+
+class _CartScreenState extends State<CartScreen> {
+  // State untuk menyimpan ID produk yang stoknya habis
+  final Set<String> _outOfStockProductIds = {};
+  bool _isCheckingStock = false;
+
+  // --- FUNGSI LOGIKA BARU UNTUK VALIDASI STOK ---
+  Future<void> _handleCheckout() async {
+    final cart = context.read<CartProvider>();
+    if (cart.items.isEmpty || _isCheckingStock) {
+      return;
+    }
+
+    setState(() {
+      _isCheckingStock = true;
+      _outOfStockProductIds.clear(); // Bersihkan penanda lama
+    });
+
+    final List<CartItemUI> outOfStockItems = [];
+    final firestore = FirebaseFirestore.instance;
+
+    try {
+      for (var item in cart.items) {
+        final productDoc = await firestore.collection('products').doc(item.productId).get();
+
+        if (productDoc.exists) {
+          final availableStock = productDoc.data()!['stock'] as int? ?? 0;
+          if (availableStock < item.quantity) {
+            outOfStockItems.add(item);
+            _outOfStockProductIds.add(item.productId);
+          }
+        } else {
+          // Produk tidak lagi ada di database
+          outOfStockItems.add(item);
+          _outOfStockProductIds.add(item.productId);
+        }
+      }
+    } catch (e) {
+      // Tangani error jika gagal mengambil data dari Firestore
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memverifikasi stok: $e')),
+      );
+      setState(() {
+        _isCheckingStock = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isCheckingStock = false;
+    });
+
+    if (outOfStockItems.isNotEmpty) {
+      final productNames = outOfStockItems.map((item) => '"${item.nama}" (stok sisa: ${item.stok})').join(', ');
+      
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Stok Tidak Cukup'),
+          content: Text(
+            'Produk $productNames habis atau stoknya tidak mencukupi. Silakan hapus atau kurangi jumlah produk tersebut untuk melanjutkan.',
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Mengerti'),
+              onPressed: () => Navigator.of(ctx).pop(),
+            )
+          ],
+        ),
+      );
+    } else {
+      // Semua stok aman, lanjutkan ke checkout
+      if (mounted) {
+        context.push('/checkout');
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -89,19 +174,15 @@ class CartScreen extends StatelessWidget {
             return RefreshIndicator(
               onRefresh: cart.fetchCart,
               child: ListView(
-                // Agar bisa pull-to-refresh meskipun kosong
                 children: const [
                   SizedBox(height: 150),
                   Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.shopping_cart_outlined,
-                            size: 64, color: Colors.grey),
+                        Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey),
                         SizedBox(height: 16),
-                        Text('Keranjang Kosong',
-                            style: TextStyle(
-                                fontSize: 24, fontWeight: FontWeight.bold)),
+                        Text('Keranjang Kosong', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                         Text('Belum ada produk di keranjang Anda'),
                       ],
                     ),
@@ -120,7 +201,9 @@ class CartScreen extends StatelessWidget {
                     itemCount: cart.items.length,
                     itemBuilder: (context, index) {
                       final item = cart.items[index];
-                      return _CartItemCard(key: ValueKey(item.id), item: item);
+                      // --- PERUBAHAN: Kirim status stok ke item card ---
+                      final isOutOfStock = _outOfStockProductIds.contains(item.productId);
+                      return _CartItemCard(key: ValueKey(item.id), item: item, isOutOfStock: isOutOfStock);
                     },
                   ),
                 ),
@@ -130,16 +213,10 @@ class CartScreen extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Total:',
-                        style: TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.bold)),
+                    const Text('Total:', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                     Text(
-                      NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ')
-                          .format(cart.total),
-                      style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green),
+                      NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ').format(cart.total),
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green),
                     ),
                   ],
                 ),
@@ -150,10 +227,11 @@ class CartScreen extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 50),
                   ),
-                  onPressed: () {
-                    context.push('/checkout');
-                  },
-                  child: const Text('Checkout'),
+                  // --- PERUBAHAN: Panggil fungsi _handleCheckout ---
+                  onPressed: _isCheckingStock ? null : _handleCheckout,
+                  child: _isCheckingStock 
+                      ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white,)) 
+                      : const Text('Checkout'),
                 ),
               )
             ],
@@ -166,8 +244,9 @@ class CartScreen extends StatelessWidget {
 
 class _CartItemCard extends StatefulWidget {
   final CartItemUI item;
+  final bool isOutOfStock; // Properti baru untuk status stok
 
-  const _CartItemCard({super.key, required this.item});
+  const _CartItemCard({super.key, required this.item, this.isOutOfStock = false});
 
   @override
   State<_CartItemCard> createState() => _CartItemCardState();
@@ -180,8 +259,7 @@ class _CartItemCardState extends State<_CartItemCard> {
   @override
   void initState() {
     super.initState();
-    _quantityController =
-        TextEditingController(text: widget.item.quantity.toString());
+    _quantityController = TextEditingController(text: widget.item.quantity.toString());
   }
 
   @override
@@ -194,71 +272,39 @@ class _CartItemCardState extends State<_CartItemCard> {
   @override
   void didUpdateWidget(covariant _CartItemCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Cek jika kuantitas dari server/state berubah DAN tidak sama dengan yang ada di input field
     if (widget.item.quantity != oldWidget.item.quantity &&
         widget.item.quantity.toString() != _quantityController.text) {
       final currentSelection = _quantityController.selection;
       final newText = widget.item.quantity.toString();
       _quantityController.text = newText;
-
-      // Amankan posisi kursor. Jika posisi sebelumnya lebih besar dari panjang teks baru,
-      // pindahkan kursor ke akhir.
-      final newOffset = currentSelection.baseOffset > newText.length
-          ? newText.length
-          : currentSelection.baseOffset;
-
-      _quantityController.selection =
-          TextSelection.collapsed(offset: newOffset);
+      final newOffset = currentSelection.baseOffset > newText.length ? newText.length : currentSelection.baseOffset;
+      _quantityController.selection = TextSelection.collapsed(offset: newOffset);
     }
   }
 
   void _onQuantityChanged(String value) {
-    // Batalkan debounce sebelumnya jika ada
     if (_debounce?.isActive ?? false) _debounce!.cancel();
-
     int newQuantity = int.tryParse(value) ?? 0;
     final stock = widget.item.stok;
 
-    // --- LOGIKA PINTAR DIMULAI DI SINI ---
-    // Jika kuantitas yang diinput melebihi stok
     if (newQuantity > stock) {
-      // Langsung perbaiki nilai di text field
       _quantityController.text = stock.toString();
-      // Pindahkan kursor ke akhir
-      _quantityController.selection = TextSelection.fromPosition(
-        TextPosition(offset: _quantityController.text.length),
-      );
-      // Atur nilai kuantitas yang akan dikirim ke provider ke nilai stok
+      _quantityController.selection = TextSelection.fromPosition(TextPosition(offset: _quantityController.text.length));
       newQuantity = stock;
     }
-    // --- LOGIKA PINTAR BERAKHIR DI SINI ---
 
-    // Gunakan debounce untuk mengirim pembaruan ke provider
     _debounce = Timer(const Duration(milliseconds: 800), () {
-      // Pastikan nilai tidak negatif
-      if (newQuantity < 0) {
-        newQuantity = 0;
-      }
-
-      // Jika kuantitas menjadi 0, hapus item. Jika tidak, perbarui.
+      if (newQuantity < 0) newQuantity = 0;
       if (newQuantity == 0) {
-        // Jangan panggil removeItem jika widget sudah tidak ada di tree
-        if (mounted) {
-          context.read<CartProvider>().removeItem(widget.item.productId);
-        }
+        if (mounted) context.read<CartProvider>().removeItem(widget.item.productId);
       } else {
-        if (mounted) {
-          context
-              .read<CartProvider>()
-              .updateQuantity(widget.item.productId, newQuantity);
-        }
+        if (mounted) context.read<CartProvider>().updateQuantity(widget.item.productId, newQuantity);
       }
     });
   }
 
   void _updateByButton(int change) {
-    final currentVal =
-        int.tryParse(_quantityController.text) ?? widget.item.quantity;
+    final currentVal = int.tryParse(_quantityController.text) ?? widget.item.quantity;
     int newQuantity = currentVal + change;
 
     if (newQuantity > widget.item.stok) newQuantity = widget.item.stok;
@@ -266,9 +312,7 @@ class _CartItemCardState extends State<_CartItemCard> {
       context.read<CartProvider>().removeItem(widget.item.productId);
     } else {
       _quantityController.text = newQuantity.toString();
-      context
-          .read<CartProvider>()
-          .updateQuantity(widget.item.productId, newQuantity);
+      context.read<CartProvider>().updateQuantity(widget.item.productId, newQuantity);
     }
   }
 
@@ -276,6 +320,8 @@ class _CartItemCardState extends State<_CartItemCard> {
   Widget build(BuildContext context) {
     final item = widget.item;
     return Card(
+      // --- PERUBAHAN: Tandai item jika stok habis ---
+      color: widget.isOutOfStock ? Colors.red.withOpacity(0.1) : null,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Padding(
         padding: const EdgeInsets.all(8.0),
@@ -289,10 +335,8 @@ class _CartItemCardState extends State<_CartItemCard> {
                 child: CachedNetworkImage(
                   imageUrl: item.gambar,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) =>
-                      const Center(child: CircularProgressIndicator()),
-                  errorWidget: (context, url, error) =>
-                      const Icon(Icons.broken_image, color: Colors.grey),
+                  placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                  errorWidget: (context, url, error) => const Icon(Icons.broken_image, color: Colors.grey),
                 ),
               ),
             ),
@@ -301,27 +345,21 @@ class _CartItemCardState extends State<_CartItemCard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(item.nama,
-                      style: const TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.bold)),
+                  Text(item.nama, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  Text(
-                      NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ')
-                          .format(item.harga),
-                      style: const TextStyle(
-                          fontSize: 12, color: Colors.deepOrange)),
+                  Text(NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ').format(item.harga), style: const TextStyle(fontSize: 12, color: Colors.deepOrange)),
+                  // --- PERUBAHAN: Tampilkan sisa stok jika item ditandai ---
+                  if (widget.isOutOfStock)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text('Stok sisa: ${item.stok}', style: TextStyle(fontSize: 12, color: Colors.red[700], fontWeight: FontWeight.bold)),
+                    ),
                 ],
               ),
             ),
             Row(
               children: [
-                IconButton(
-                  padding: EdgeInsets.zero, // Hapus padding
-                  constraints: const BoxConstraints(), // Hapus batasan ukuran
-                  iconSize: 18.0, // Atur ukuran ikon
-                  icon: const Icon(Icons.remove),
-                  onPressed: () => _updateByButton(-1),
-                ),
+                IconButton(padding: EdgeInsets.zero, constraints: const BoxConstraints(), iconSize: 18.0, icon: const Icon(Icons.remove), onPressed: () => _updateByButton(-1)),
                 SizedBox(
                   width: 25,
                   child: TextField(
@@ -331,25 +369,13 @@ class _CartItemCardState extends State<_CartItemCard> {
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     onChanged: _onQuantityChanged,
                     style: const TextStyle(fontSize: 12),
-                    decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.zero),
+                    decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.zero),
                   ),
                 ),
-                IconButton(
-                  padding: EdgeInsets.zero, // Hapus padding
-                  constraints: const BoxConstraints(), // Hapus batasan ukuran
-                  iconSize: 18.0, // Atur ukuran ikon
-                  icon: const Icon(Icons.add),
-                  onPressed: () => _updateByButton(1),
-                ),
+                IconButton(padding: EdgeInsets.zero, constraints: const BoxConstraints(), iconSize: 18.0, icon: const Icon(Icons.add), onPressed: () => _updateByButton(1)),
               ],
             ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () =>
-                  context.read<CartProvider>().removeItem(item.productId),
-            )
+            IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => context.read<CartProvider>().removeItem(item.productId))
           ],
         ),
       ),
